@@ -1,17 +1,19 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth";
 import { Role } from "@prisma/client";
-import Header from "@/components/layout/Header";
+import DashboardShell from "@/components/dashboard/DashboardShell";
 import { routes } from "@/config/site";
 
 /**
  * Shell layout for every role-protected area (/student, /faculty,
  * /academic-admin, /super-admin). middleware.ts already blocks
  * unauthenticated/unauthorized requests at the edge; this re-checks the
- * session server-side as defense in depth, and renders the shared header.
+ * session server-side as defense in depth, and renders the shared
+ * dashboard shell (sidebar, top nav, breadcrumb, notifications, profile
+ * menu, mobile drawer, footer).
  *
- * Dashboard page content for each role is intentionally NOT included yet —
- * only the protected shell and access control are wired up at this stage.
+ * Dashboard page CONTENT for each role is intentionally NOT included yet —
+ * only the reusable shell and access control are wired up at this stage.
  */
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -21,9 +23,13 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="min-h-screen bg-parchment-50">
-      <Header userEmail={session.user.email ?? ""} role={session.user.role as Role} />
-      <main className="mx-auto max-w-5xl px-6 py-10">{children}</main>
-    </div>
+    <DashboardShell
+      role={session.user.role as Role}
+      userName={session.user.name}
+      userEmail={session.user.email}
+      userImage={session.user.image}
+    >
+      {children}
+    </DashboardShell>
   );
 }
