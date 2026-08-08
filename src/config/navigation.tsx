@@ -3,7 +3,7 @@ import {
   LayoutDashboard,
   BookOpen,
   ClipboardCheck,
-  GraduationCap,
+  TrendingUp,
   CalendarDays,
   CalendarCheck2,
   MessagesSquare,
@@ -52,9 +52,9 @@ export function getNavSections(role: Role): NavSection[] {
           title: "Academics",
           items: [
             { label: "Attendance", href: "/student/attendance", icon: CalendarCheck2 },
+            { label: "Progress", href: "/student/progress", icon: TrendingUp },
             { label: "My Courses", icon: BookOpen, comingSoon: true },
             { label: "Assignments", icon: ClipboardCheck, comingSoon: true },
-            { label: "Grades", icon: GraduationCap, comingSoon: true },
           ],
         },
         {

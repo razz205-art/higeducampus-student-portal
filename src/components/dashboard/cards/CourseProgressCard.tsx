@@ -1,10 +1,19 @@
 import { BarChart3 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import type { CourseProgressItem } from "@/types/student-dashboard";
 
-export default function CourseProgressCard({ items }: { items: CourseProgressItem[] }) {
+export default function CourseProgressCard({
+  items,
+  title = "Course Progress",
+  icon = BarChart3,
+}: {
+  items: CourseProgressItem[];
+  title?: string;
+  icon?: LucideIcon;
+}) {
   return (
-    <DashboardCard title="Course Progress" icon={BarChart3}>
+    <DashboardCard title={title} icon={icon}>
       <ul className="space-y-4">
         {items.map((course) => (
           <li key={course.id}>

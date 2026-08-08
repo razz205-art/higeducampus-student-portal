@@ -170,6 +170,93 @@ async function seedDemoAttendance() {
 
   await prisma.attendanceRecord.createMany({ data: records, skipDuplicates: true });
 
+  // --- Progress tracker demo data -----------------------------------------
+  // Two modules of four lessons each; the first three students complete a
+  // realistic, staggered subset so Overall/Subject/Module progress, the
+  // streak, and the weekly/monthly activity graphs all have real variation
+  // to display (not just "0%" or "100%" everywhere).
+  const moduleDefs = [
+    {
+      title: "Module 1: Foundations",
+      lessons: ["Variables & Types", "Control Flow", "Functions", "Arrays"],
+    },
+    {
+      title: "Module 2: Data Structures",
+      lessons: ["Lists & Stacks", "Queues", "Trees", "Hash Maps"],
+    },
+  ];
+
+  const createdModules = [];
+  for (let mi = 0; mi < moduleDefs.length; mi++) {
+    const def = moduleDefs[mi]!;
+    const mod = await prisma.module.create({
+      data: { courseId: course.id, title: def.title, order: mi },
+    });
+    const lessons = await Promise.all(
+      def.lessons.map((title, li) =>
+        prisma.lesson.create({ data: { moduleId: mod.id, title, order: li } })
+      )
+    );
+    createdModules.push({ mod, lessons });
+  }
+
+  const allLessons = createdModules.flatMap((m) => m.lessons);
+  const completionRecords: { studentId: string; lessonId: string; completedAt: Date }[] = [];
+  // student[0]: finished everything. student[1]: about halfway. student[2]: just started.
+  const completionCounts = [allLessons.length, Math.ceil(allLessons.length / 2), 2, 0, 0, 0];
+  students.forEach((student, si) => {
+    const count = completionCounts[si] ?? 0;
+    for (let li = 0; li < count; li++) {
+      const daysAgo = (count - li) * 2; // spread completions out over time
+      const completedAt = new Date(today);
+      completedAt.setUTCDate(completedAt.getUTCDate() - daysAgo);
+      completionRecords.push({ studentId: student.id, lessonId: allLessons[li]!.id, completedAt });
+    }
+  });
+  await prisma.lessonCompletion.createMany({ data: completionRecords, skipDuplicates: true });
+
+  const quizDefs = [
+    { title: "Quiz 1: Foundations Check", maxScore: 20 },
+    { title: "Quiz 2: Data Structures Check", maxScore: 20 },
+  ];
+  const createdQuizzes = await Promise.all(
+    quizDefs.map((q) => prisma.quiz.create({ data: { courseId: course.id, ...q } }))
+  );
+  const quizScores = [18, 17, 12, null, null, null]; // per-student score on quiz 1 (nulls = not attempted)
+  const quizAttempts: { studentId: string; quizId: string; score: number; takenAt: Date }[] = [];
+  students.forEach((student, si) => {
+    const score = quizScores[si];
+    if (score !== null && score !== undefined) {
+      const takenAt = new Date(today);
+      takenAt.setUTCDate(takenAt.getUTCDate() - 5);
+      quizAttempts.push({ studentId: student.id, quizId: createdQuizzes[0]!.id, score, takenAt });
+    }
+  });
+  await prisma.quizAttempt.createMany({ data: quizAttempts });
+
+  const dueDate1 = new Date(today);
+  dueDate1.setUTCDate(dueDate1.getUTCDate() - 3);
+  const dueDate2 = new Date(today);
+  dueDate2.setUTCDate(dueDate2.getUTCDate() + 4);
+  const createdAssignments = await Promise.all([
+    prisma.assignment.create({
+      data: { courseId: course.id, title: "Assignment 1: Variables Practice", dueDate: dueDate1 },
+    }),
+    prisma.assignment.create({
+      data: { courseId: course.id, title: "Assignment 2: Sorting Exercise", dueDate: dueDate2 },
+    }),
+  ]);
+  const submissionFlags = [true, true, false, false, false, false]; // who submitted assignment 1
+  const submissions = students
+    .map((student, si) => ({ student, submitted: submissionFlags[si] }))
+    .filter((s) => s.submitted)
+    .map((s) => ({
+      studentId: s.student.id,
+      assignmentId: createdAssignments[0]!.id,
+      submittedAt: today,
+    }));
+  await prisma.assignmentSubmission.createMany({ data: submissions, skipDuplicates: true });
+
   // One inactive sample session — an admin can activate it from
   // /academic-admin/attendance to try the live check-in flow end to end.
   await prisma.liveClassSession.create({
@@ -193,6 +280,12 @@ async function seedDemoAttendance() {
   );
   console.log(`            (registration numbers STU-2026-0001 .. 0006, batch "2024 - 2028")`);
   console.log(`  course:   CS101 — Introduction to Programming`);
+  console.log(
+    `  progress: 2 modules / 8 lessons, 2 quizzes, 2 assignments — demo.student1 has completed`
+  );
+  console.log(
+    `            everything; demo.student2 is about halfway; the rest are just starting.`
+  );
   console.log(`  ${records.length} attendance records created.`);
   console.log(`  1 sample live class session created (inactive) — activate it from`);
   console.log(`  /academic-admin/attendance to try the /attendance check-in flow.`);
