@@ -62,3 +62,55 @@ export async function issueCertificateAction(courseId: string): Promise<IssueCer
 
   return { success: true, message: "Certificate issued.", certificateId: certificate.id };
 }
+
+function isAdmin(role: string | undefined): boolean {
+  return role === "ACADEMIC_ADMIN" || role === "SUPER_ADMIN";
+}
+
+export async function revokeCertificateAction(
+  certificateId: string
+): Promise<IssueCertificateResult> {
+  const session = await auth();
+  if (!session?.user) return { success: false, message: "You must be signed in." };
+  if (!isAdmin(session.user.role)) {
+    return { success: false, message: "You don't have permission to revoke certificates." };
+  }
+
+  try {
+    await prisma.certificate.update({
+      where: { id: certificateId },
+      data: { isRevoked: true, revokedAt: new Date() },
+    });
+  } catch {
+    return { success: false, message: "Certificate not found." };
+  }
+
+  revalidatePath("/academic-admin/certificates");
+  revalidatePath("/student/certificates");
+
+  return { success: true, message: "Certificate revoked." };
+}
+
+export async function restoreCertificateAction(
+  certificateId: string
+): Promise<IssueCertificateResult> {
+  const session = await auth();
+  if (!session?.user) return { success: false, message: "You must be signed in." };
+  if (!isAdmin(session.user.role)) {
+    return { success: false, message: "You don't have permission to restore certificates." };
+  }
+
+  try {
+    await prisma.certificate.update({
+      where: { id: certificateId },
+      data: { isRevoked: false, revokedAt: null },
+    });
+  } catch {
+    return { success: false, message: "Certificate not found." };
+  }
+
+  revalidatePath("/academic-admin/certificates");
+  revalidatePath("/student/certificates");
+
+  return { success: true, message: "Certificate restored." };
+}

@@ -53,6 +53,13 @@ export default async function VerifyCertificatePage({ params }: { params: { code
                 </div>
               </dl>
             </div>
+          ) : result.revoked ? (
+            <div className="flex items-center gap-2.5 rounded-sm border border-signal-error/30 bg-signal-error/10 px-3.5 py-2.5 text-signal-error">
+              <ShieldX size={18} aria-hidden="true" />
+              <span className="text-sm font-medium">
+                This certificate has been revoked and is no longer valid.
+              </span>
+            </div>
           ) : (
             <div className="flex items-center gap-2.5 rounded-sm border border-signal-error/30 bg-signal-error/10 px-3.5 py-2.5 text-signal-error">
               <ShieldX size={18} aria-hidden="true" />

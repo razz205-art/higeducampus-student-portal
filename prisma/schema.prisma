@@ -68,6 +68,9 @@ model User {
   // Certificate module
   certificates Certificate[]
 
+  // Study materials module
+  uploadedMaterials StudyMaterial[]
+
   @@index([role])
   @@index([batchId])
   @@map("users")
@@ -169,6 +172,7 @@ model Course {
   timetableSlots TimetableSlot[]
   semesterCourseResults SemesterCourseResult[]
   certificates          Certificate[]
+  materials             StudyMaterial[]
 
   @@index([facultyId])
   @@map("courses")
@@ -592,15 +596,17 @@ model SemesterCourseResult {
  * human-readable certificateNumber printed on the certificate itself.
  */
 model Certificate {
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   studentId         String
   courseId          String
-  certificateNumber String   @unique
-  verificationCode  String   @unique
+  certificateNumber String    @unique
+  verificationCode  String    @unique
   studentName       String
   courseName        String
   courseCode        String
-  issuedAt          DateTime @default(now())
+  issuedAt          DateTime  @default(now())
+  isRevoked         Boolean   @default(false)
+  revokedAt         DateTime?
 
   student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -609,4 +615,34 @@ model Certificate {
   @@index([studentId])
   @@index([verificationCode])
   @@map("certificates")
+}
+
+/**
+ * Study materials — admin/faculty-provisioned reference material per
+ * course. Files are URL references, same reasoning as Notification
+ * attachments: no storage provider (S3/R2/Cloudinary) is configured in
+ * this project, so a real upload flow is a deliberate future addition,
+ * not something to fake with local disk storage.
+ */
+enum MaterialType {
+  DOCUMENT
+  VIDEO
+  LINK
+}
+
+model StudyMaterial {
+  id           String       @id @default(cuid())
+  courseId     String
+  title        String
+  description  String?
+  type         MaterialType
+  url          String
+  uploadedById String
+  createdAt    DateTime     @default(now())
+
+  course     Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  uploadedBy User   @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+  @@map("study_materials")
 }

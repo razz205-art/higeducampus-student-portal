@@ -65,6 +65,7 @@ export async function getCertificateByVerificationCode(
 ): Promise<CertificateVerification> {
   const cert = await prisma.certificate.findUnique({ where: { verificationCode: code } });
   if (!cert) return { valid: false };
+  if (cert.isRevoked) return { valid: false, revoked: true };
 
   return {
     valid: true,
@@ -74,6 +75,42 @@ export async function getCertificateByVerificationCode(
     courseName: cert.courseName,
     issuedAt: formatISODate(cert.issuedAt),
   };
+}
+
+export interface AdminCertificateRow {
+  id: string;
+  certificateNumber: string;
+  verificationCode: string;
+  studentName: string;
+  courseCode: string;
+  courseName: string;
+  issuedAt: string;
+  isRevoked: boolean;
+}
+
+export async function getAllCertificatesForAdmin(): Promise<AdminCertificateRow[]> {
+  const certificates = await prisma.certificate.findMany({ orderBy: { issuedAt: "desc" } });
+  return certificates.map(
+    (c: {
+      id: string;
+      certificateNumber: string;
+      verificationCode: string;
+      studentName: string;
+      courseCode: string;
+      courseName: string;
+      issuedAt: Date;
+      isRevoked: boolean;
+    }) => ({
+      id: c.id,
+      certificateNumber: c.certificateNumber,
+      verificationCode: c.verificationCode,
+      studentName: c.studentName,
+      courseCode: c.courseCode,
+      courseName: c.courseName,
+      issuedAt: formatISODate(c.issuedAt),
+      isRevoked: c.isRevoked,
+    })
+  );
 }
 
 /** Full record for PDF generation. Returns null if not found or not owned by studentId. */

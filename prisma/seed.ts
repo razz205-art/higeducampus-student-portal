@@ -525,6 +525,34 @@ async function seedDemoAttendance() {
     },
   });
 
+  // --- Study materials demo data -------------------------------------------
+  await prisma.studyMaterial.createMany({
+    data: [
+      {
+        courseId: course.id,
+        title: "Course Syllabus",
+        description: "Full breakdown of modules, grading, and schedule.",
+        type: "DOCUMENT",
+        url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        uploadedById: faculty.id,
+      },
+      {
+        courseId: course.id,
+        title: "Lecture 1 Recording — Variables & Types",
+        type: "VIDEO",
+        url: "https://www.w3schools.com/html/mov_bbb.mp4",
+        uploadedById: faculty.id,
+      },
+      {
+        courseId: course.id,
+        title: "Recommended reading: MDN JavaScript Guide",
+        type: "LINK",
+        url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide",
+        uploadedById: faculty.id,
+      },
+    ],
+  });
+
   console.log("Seeded demo attendance data:");
   console.log(`  faculty:  demo.faculty@lms-portal.edu / DemoPass!123`);
   console.log(
@@ -546,6 +574,9 @@ async function seedDemoAttendance() {
   console.log(`  results:  Semester 1 published for student1/2/3 (92%/78%/65%) — see`);
   console.log(`            /student/results (log in as demo.student1 for the top rank).`);
   console.log(`  certificates: 1 issued for demo.student1 (CS101) — see /student/certificates.`);
+  console.log(`  materials: 3 study materials seeded for CS101 — see /student/materials.`);
+  console.log(`  admin:    log in as Super Admin and visit /academic-admin for the full`);
+  console.log(`            dashboard — Students, Faculty, Courses, Analytics, and more.`);
   console.log(`  ${records.length} attendance records created.`);
   console.log(`  1 sample live class session created (inactive) — activate it from`);
   console.log(`  /academic-admin/attendance to try the /attendance check-in flow.`);

@@ -11,7 +11,13 @@ import type { AttendanceTrendPoint } from "@/types/attendance";
 // standard safe pattern for it in the Next.js App Router.
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-export default function AttendanceTrendChart({ data }: { data: AttendanceTrendPoint[] }) {
+export default function AttendanceTrendChart({
+  data,
+  title = "Attendance Trend",
+}: {
+  data: AttendanceTrendPoint[];
+  title?: string;
+}) {
   const options: ApexOptions = {
     chart: {
       type: "area",
@@ -43,7 +49,7 @@ export default function AttendanceTrendChart({ data }: { data: AttendanceTrendPo
   const series = [{ name: "Attendance %", data: data.map((d) => d.percentage) }];
 
   return (
-    <DashboardCard title="Attendance Trend" icon={TrendingUp}>
+    <DashboardCard title={title} icon={TrendingUp}>
       <div className="h-64 w-full">
         <Chart options={options} series={series} type="area" height="100%" width="100%" />
       </div>

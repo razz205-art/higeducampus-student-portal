@@ -10,10 +10,12 @@ import {
   Bell,
   Award,
   BadgeCheck,
-  MessagesSquare,
-  Building2,
   Library,
+  MessagesSquare,
   Users,
+  GraduationCap,
+  ClipboardList,
+  BarChart3,
   ShieldCheck,
   FileClock,
   SlidersHorizontal,
@@ -65,7 +67,7 @@ export function getNavSections(role: Role): NavSection[] {
             { label: "Results", href: "/student/results", icon: Award },
             { label: "Certificates", href: "/student/certificates", icon: BadgeCheck },
             { label: "Exam Countdown", href: "/student/exams", icon: Timer },
-            { label: "My Courses", icon: BookOpen, comingSoon: true },
+            { label: "Study Materials", href: "/student/materials", icon: Library },
             { label: "Assignments", icon: ClipboardCheck, comingSoon: true },
           ],
         },
@@ -102,19 +104,28 @@ export function getNavSections(role: Role): NavSection[] {
       return [
         { items: [overview, notifications] },
         {
-          title: "Administration",
+          title: "People",
           items: [
+            { label: "Students", href: "/academic-admin/students", icon: Users },
+            { label: "Faculty", href: "/academic-admin/faculty", icon: GraduationCap },
+          ],
+        },
+        {
+          title: "Academics",
+          items: [
+            { label: "Courses", href: "/academic-admin/courses", icon: BookOpen },
             { label: "Attendance", href: "/academic-admin/attendance", icon: CalendarCheck2 },
+            { label: "Assignments", href: "/academic-admin/assignments", icon: ClipboardList },
             { label: "Timetable", href: "/academic-admin/timetable", icon: CalendarDays },
+            { label: "Results", href: "/academic-admin/results", icon: BarChart3 },
+            { label: "Study Materials", href: "/academic-admin/materials", icon: Library },
+            { label: "Certificates", href: "/academic-admin/certificates", icon: Award },
             { label: "Exam Countdown", href: "/academic-admin/exams", icon: Timer },
-            { label: "Departments", icon: Building2, comingSoon: true },
-            { label: "Course Catalog", icon: Library, comingSoon: true },
-            { label: "Faculty", icon: Users, comingSoon: true },
           ],
         },
         {
           title: "Insights",
-          items: [{ label: "Reports", icon: FileClock, comingSoon: true }],
+          items: [{ label: "Analytics", href: "/academic-admin/analytics", icon: BarChart3 }],
         },
       ];
 

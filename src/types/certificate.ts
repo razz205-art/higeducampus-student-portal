@@ -20,6 +20,7 @@ export interface CertificateItem {
 
 export interface CertificateVerification {
   valid: boolean;
+  revoked?: boolean;
   certificateNumber?: string;
   studentName?: string;
   courseCode?: string;
