@@ -553,6 +553,30 @@ async function seedDemoAttendance() {
     ],
   });
 
+  // --- Analytics demo data: login activity for DAU/MAU charts --------------
+  // Deterministic, staggered logins across the last 10 days so the charts
+  // on first view show real variation instead of a flat line.
+  const loginLogs: { userId: string; event: string; createdAt: Date }[] = [];
+  const loginPattern = [
+    { daysAgo: 0, studentIdxs: [0, 1, 2] },
+    { daysAgo: 1, studentIdxs: [0, 1] },
+    { daysAgo: 2, studentIdxs: [0, 2, 3] },
+    { daysAgo: 3, studentIdxs: [0] },
+    { daysAgo: 4, studentIdxs: [0, 1, 4] },
+    { daysAgo: 6, studentIdxs: [0, 2] },
+    { daysAgo: 8, studentIdxs: [0, 1, 3, 5] },
+  ];
+  for (const day of loginPattern) {
+    const at = new Date(today);
+    at.setUTCDate(at.getUTCDate() - day.daysAgo);
+    at.setUTCHours(9, 0, 0, 0);
+    for (const idx of day.studentIdxs) {
+      loginLogs.push({ userId: students[idx]!.id, event: "LOGIN_SUCCESS", createdAt: at });
+    }
+    loginLogs.push({ userId: faculty.id, event: "LOGIN_SUCCESS", createdAt: at });
+  }
+  await prisma.auditLog.createMany({ data: loginLogs });
+
   console.log("Seeded demo attendance data:");
   console.log(`  faculty:  demo.faculty@lms-portal.edu / DemoPass!123`);
   console.log(
@@ -575,6 +599,8 @@ async function seedDemoAttendance() {
   console.log(`            /student/results (log in as demo.student1 for the top rank).`);
   console.log(`  certificates: 1 issued for demo.student1 (CS101) — see /student/certificates.`);
   console.log(`  materials: 3 study materials seeded for CS101 — see /student/materials.`);
+  console.log(`  analytics: demo login activity seeded for DAU/MAU charts — see`);
+  console.log(`             /academic-admin/analytics.`);
   console.log(`  admin:    log in as Super Admin and visit /academic-admin for the full`);
   console.log(`            dashboard — Students, Faculty, Courses, Analytics, and more.`);
   console.log(`  ${records.length} attendance records created.`);
