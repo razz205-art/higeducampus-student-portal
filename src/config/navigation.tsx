@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CalendarCheck2,
   Bell,
+  Award,
   MessagesSquare,
   Building2,
   Library,
@@ -60,6 +61,7 @@ export function getNavSections(role: Role): NavSection[] {
           items: [
             { label: "Attendance", href: "/student/attendance", icon: CalendarCheck2 },
             { label: "Progress", href: "/student/progress", icon: TrendingUp },
+            { label: "Results", href: "/student/results", icon: Award },
             { label: "Exam Countdown", href: "/student/exams", icon: Timer },
             { label: "My Courses", icon: BookOpen, comingSoon: true },
             { label: "Assignments", icon: ClipboardCheck, comingSoon: true },

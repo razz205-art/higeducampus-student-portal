@@ -61,6 +61,10 @@ model User {
   // Timetable module
   createdTimetableSlots TimetableSlot[] @relation("TimetableCreatedBy")
 
+  // Results module
+  semesterResults        SemesterResult[] @relation("StudentSemesterResults")
+  createdSemesterResults SemesterResult[] @relation("SemesterResultCreatedBy")
+
   @@index([role])
   @@index([batchId])
   @@map("users")
@@ -160,6 +164,7 @@ model Course {
   quizzes     Quiz[]
   assignments Assignment[]
   timetableSlots TimetableSlot[]
+  semesterCourseResults SemesterCourseResult[]
 
   @@index([facultyId])
   @@map("courses")
@@ -324,12 +329,18 @@ model LessonCompletion {
   @@map("lesson_completions")
 }
 
+enum AssessmentKind {
+  INTERNAL
+  MOCK_TEST
+}
+
 model Quiz {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
   courseId  String
   title     String
-  maxScore  Int      @default(100)
-  createdAt DateTime @default(now())
+  maxScore  Int            @default(100)
+  kind      AssessmentKind @default(MOCK_TEST)
+  createdAt DateTime       @default(now())
 
   course   Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
   attempts QuizAttempt[]
@@ -358,6 +369,7 @@ model Assignment {
   courseId  String
   title     String
   dueDate   DateTime @db.Date
+  maxScore  Int      @default(100)
   createdAt DateTime @default(now())
 
   course      Course                 @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -515,4 +527,52 @@ model TimetableSlot {
   @@index([courseId])
   @@index([dayOfWeek])
   @@map("timetable_slots")
+}
+
+/**
+ * Results module — Internal Results and Mock Tests are read from the
+ * existing Quiz/QuizAttempt data (differentiated by Quiz.kind), and
+ * Assignments from the existing AssignmentSubmission data — reused, not
+ * duplicated. SemesterResult is the one genuinely new entity: the
+ * official, admin-published record for a student's semester (GPA,
+ * percentage, per-course grades), which Batch Rank is computed from.
+ */
+enum ResultStatus {
+  PASS
+  FAIL
+  PENDING
+}
+
+model SemesterResult {
+  id            String       @id @default(cuid())
+  studentId     String
+  semesterLabel String // e.g. "Semester 1"
+  gpa           Float
+  percentage    Float
+  status        ResultStatus @default(PASS)
+  publishedAt   DateTime     @default(now())
+  createdById   String
+
+  student       User                   @relation("StudentSemesterResults", fields: [studentId], references: [id], onDelete: Cascade)
+  createdBy     User                   @relation("SemesterResultCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  courseResults SemesterCourseResult[]
+
+  @@unique([studentId, semesterLabel])
+  @@index([studentId])
+  @@map("semester_results")
+}
+
+model SemesterCourseResult {
+  id               String @id @default(cuid())
+  semesterResultId String
+  courseId         String
+  marksObtained    Float
+  maxMarks         Float
+  grade            String // "A", "B+", etc.
+
+  semesterResult SemesterResult @relation(fields: [semesterResultId], references: [id], onDelete: Cascade)
+  course         Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([semesterResultId])
+  @@map("semester_course_results")
 }

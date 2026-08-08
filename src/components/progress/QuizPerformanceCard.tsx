@@ -1,4 +1,5 @@
 import { Trophy } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import Badge from "@/components/ui/Badge";
 import type { QuizPerformanceRow } from "@/types/progress";
@@ -9,11 +10,21 @@ function variantFor(percentage: number): "success" | "warning" | "danger" {
   return "danger";
 }
 
-export default function QuizPerformanceCard({ rows }: { rows: QuizPerformanceRow[] }) {
+export default function QuizPerformanceCard({
+  rows,
+  title = "Quiz Performance",
+  icon = Trophy,
+  emptyMessage = "No quiz attempts yet.",
+}: {
+  rows: QuizPerformanceRow[];
+  title?: string;
+  icon?: LucideIcon;
+  emptyMessage?: string;
+}) {
   return (
-    <DashboardCard title="Quiz Performance" icon={Trophy} bodyClassName="p-0">
+    <DashboardCard title={title} icon={icon} bodyClassName="p-0">
       {rows.length === 0 ? (
-        <p className="p-5 text-center text-sm text-ink-900/45">No quiz attempts yet.</p>
+        <p className="p-5 text-center text-sm text-ink-900/45">{emptyMessage}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">

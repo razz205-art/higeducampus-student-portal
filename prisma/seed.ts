@@ -216,20 +216,44 @@ async function seedDemoAttendance() {
   await prisma.lessonCompletion.createMany({ data: completionRecords, skipDuplicates: true });
 
   const quizDefs = [
-    { title: "Quiz 1: Foundations Check", maxScore: 20 },
-    { title: "Quiz 2: Data Structures Check", maxScore: 20 },
+    { title: "Internal Assessment 1", maxScore: 20, kind: "INTERNAL" as const },
+    { title: "Internal Assessment 2", maxScore: 20, kind: "INTERNAL" as const },
+    { title: "Mock Test — Programming Basics", maxScore: 50, kind: "MOCK_TEST" as const },
   ];
   const createdQuizzes = await Promise.all(
     quizDefs.map((q) => prisma.quiz.create({ data: { courseId: course.id, ...q } }))
   );
-  const quizScores = [18, 17, 12, null, null, null]; // per-student score on quiz 1 (nulls = not attempted)
+  // Per-student score on [Internal 1, Mock Test] — nulls = not attempted.
+  const quizScores: { internal: number | null; mock: number | null }[] = [
+    { internal: 18, mock: 44 },
+    { internal: 17, mock: 39 },
+    { internal: 12, mock: 30 },
+    { internal: null, mock: null },
+    { internal: null, mock: null },
+    { internal: null, mock: null },
+  ];
   const quizAttempts: { studentId: string; quizId: string; score: number; takenAt: Date }[] = [];
   students.forEach((student, si) => {
-    const score = quizScores[si];
-    if (score !== null && score !== undefined) {
-      const takenAt = new Date(today);
-      takenAt.setUTCDate(takenAt.getUTCDate() - 5);
-      quizAttempts.push({ studentId: student.id, quizId: createdQuizzes[0]!.id, score, takenAt });
+    const { internal, mock } = quizScores[si]!;
+    const takenAt = new Date(today);
+    takenAt.setUTCDate(takenAt.getUTCDate() - 5);
+    if (internal !== null) {
+      quizAttempts.push({
+        studentId: student.id,
+        quizId: createdQuizzes[0]!.id,
+        score: internal,
+        takenAt,
+      });
+    }
+    if (mock !== null) {
+      const mockTakenAt = new Date(today);
+      mockTakenAt.setUTCDate(mockTakenAt.getUTCDate() - 2);
+      quizAttempts.push({
+        studentId: student.id,
+        quizId: createdQuizzes[2]!.id,
+        score: mock,
+        takenAt: mockTakenAt,
+      });
     }
   });
   await prisma.quizAttempt.createMany({ data: quizAttempts });
@@ -240,22 +264,76 @@ async function seedDemoAttendance() {
   dueDate2.setUTCDate(dueDate2.getUTCDate() + 4);
   const createdAssignments = await Promise.all([
     prisma.assignment.create({
-      data: { courseId: course.id, title: "Assignment 1: Variables Practice", dueDate: dueDate1 },
+      data: {
+        courseId: course.id,
+        title: "Assignment 1: Variables Practice",
+        dueDate: dueDate1,
+        maxScore: 100,
+      },
     }),
     prisma.assignment.create({
-      data: { courseId: course.id, title: "Assignment 2: Sorting Exercise", dueDate: dueDate2 },
+      data: {
+        courseId: course.id,
+        title: "Assignment 2: Sorting Exercise",
+        dueDate: dueDate2,
+        maxScore: 100,
+      },
     }),
   ]);
-  const submissionFlags = [true, true, false, false, false, false]; // who submitted assignment 1
+  // [submitted?, graded score or null] per student, for Assignment 1.
+  const submissionPlan: { submitted: boolean; score: number | null }[] = [
+    { submitted: true, score: 92 },
+    { submitted: true, score: 81 },
+    { submitted: false, score: null },
+    { submitted: false, score: null },
+    { submitted: false, score: null },
+    { submitted: false, score: null },
+  ];
   const submissions = students
-    .map((student, si) => ({ student, submitted: submissionFlags[si] }))
-    .filter((s) => s.submitted)
+    .map((student, si) => ({ student, plan: submissionPlan[si]! }))
+    .filter((s) => s.plan.submitted)
     .map((s) => ({
       studentId: s.student.id,
       assignmentId: createdAssignments[0]!.id,
       submittedAt: today,
+      status: s.plan.score !== null ? ("GRADED" as const) : ("SUBMITTED" as const),
+      score: s.plan.score,
     }));
   await prisma.assignmentSubmission.createMany({ data: submissions, skipDuplicates: true });
+
+  // --- Results module: semester results (for Semester Result + Batch Rank) -
+  const semesterResultPlan: { studentIndex: number; gpa: number; percentage: number }[] = [
+    { studentIndex: 0, gpa: 3.8, percentage: 92 },
+    { studentIndex: 1, gpa: 3.2, percentage: 78 },
+    { studentIndex: 2, gpa: 2.6, percentage: 65 },
+  ];
+  for (const plan of semesterResultPlan) {
+    const student = students[plan.studentIndex]!;
+    const semesterResult = await prisma.semesterResult.upsert({
+      where: { studentId_semesterLabel: { studentId: student.id, semesterLabel: "Semester 1" } },
+      update: {},
+      create: {
+        studentId: student.id,
+        semesterLabel: "Semester 1",
+        gpa: plan.gpa,
+        percentage: plan.percentage,
+        status: "PASS",
+        createdById: faculty.id,
+      },
+    });
+    await prisma.semesterCourseResult.upsert({
+      where: { id: `${semesterResult.id}-${course.id}` },
+      update: {},
+      create: {
+        id: `${semesterResult.id}-${course.id}`,
+        semesterResultId: semesterResult.id,
+        courseId: course.id,
+        marksObtained: plan.percentage,
+        maxMarks: 100,
+        grade: plan.percentage >= 90 ? "A+" : plan.percentage >= 75 ? "A" : "B",
+      },
+    });
+  }
 
   // --- Exam countdown demo data -------------------------------------------
   const daysFromNow = (n: number, hour = 10) => {
@@ -446,6 +524,8 @@ async function seedDemoAttendance() {
   console.log(`  notifications: 7 seeded across every category, 2 pinned — see /notifications.`);
   console.log(`  timetable: CS101 meets Mon/Wed/Fri 9-10:30am + Tue 2-3:30pm — see`);
   console.log(`             /student/timetable, /faculty/timetable, or /academic-admin/timetable.`);
+  console.log(`  results:  Semester 1 published for student1/2/3 (92%/78%/65%) — see`);
+  console.log(`            /student/results (log in as demo.student1 for the top rank).`);
   console.log(`  ${records.length} attendance records created.`);
   console.log(`  1 sample live class session created (inactive) — activate it from`);
   console.log(`  /academic-admin/attendance to try the /attendance check-in flow.`);
