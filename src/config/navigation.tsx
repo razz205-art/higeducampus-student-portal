@@ -4,6 +4,7 @@ import {
   BookOpen,
   ClipboardCheck,
   TrendingUp,
+  Timer,
   CalendarDays,
   CalendarCheck2,
   MessagesSquare,
@@ -53,6 +54,7 @@ export function getNavSections(role: Role): NavSection[] {
           items: [
             { label: "Attendance", href: "/student/attendance", icon: CalendarCheck2 },
             { label: "Progress", href: "/student/progress", icon: TrendingUp },
+            { label: "Exam Countdown", href: "/student/exams", icon: Timer },
             { label: "My Courses", icon: BookOpen, comingSoon: true },
             { label: "Assignments", icon: ClipboardCheck, comingSoon: true },
           ],
@@ -93,6 +95,7 @@ export function getNavSections(role: Role): NavSection[] {
           title: "Administration",
           items: [
             { label: "Attendance", href: "/academic-admin/attendance", icon: CalendarCheck2 },
+            { label: "Exam Countdown", href: "/academic-admin/exams", icon: Timer },
             { label: "Departments", icon: Building2, comingSoon: true },
             { label: "Course Catalog", icon: Library, comingSoon: true },
             { label: "Faculty", icon: Users, comingSoon: true },

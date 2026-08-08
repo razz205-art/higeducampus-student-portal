@@ -51,6 +51,9 @@ model User {
   quizAttempts          QuizAttempt[]
   assignmentSubmissions AssignmentSubmission[]
 
+  // Exam countdown module
+  createdExams Exam[] @relation("ExamCreatedBy")
+
   @@index([role])
   @@index([batchId])
   @@map("users")
@@ -374,4 +377,27 @@ model AssignmentSubmission {
   @@unique([studentId, assignmentId])
   @@index([studentId])
   @@map("assignment_submissions")
+}
+
+/**
+ * Exam countdown module — standalone from Course (CUET PG, UGC NET, etc.
+ * are institution-wide exams, not tied to a single enrolled course).
+ * examDate is a real timestamp (not @db.Date) since the countdown needs
+ * hour/minute/second precision.
+ */
+model Exam {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  examDate    DateTime
+  isActive    Boolean  @default(true)
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User @relation("ExamCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([examDate])
+  @@index([isActive])
+  @@map("exams")
 }

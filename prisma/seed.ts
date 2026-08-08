@@ -257,6 +257,42 @@ async function seedDemoAttendance() {
     }));
   await prisma.assignmentSubmission.createMany({ data: submissions, skipDuplicates: true });
 
+  // --- Exam countdown demo data -------------------------------------------
+  const daysFromNow = (n: number, hour = 10) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() + n);
+    d.setHours(hour, 0, 0, 0);
+    return d;
+  };
+  await prisma.exam.createMany({
+    data: [
+      {
+        title: "CUET PG 2026",
+        description: "Common University Entrance Test — Postgraduate",
+        examDate: daysFromNow(21, 9),
+        createdById: faculty.id,
+      },
+      {
+        title: "UGC NET Paper I",
+        description: "General teaching & research aptitude",
+        examDate: daysFromNow(45, 14),
+        createdById: faculty.id,
+      },
+      {
+        title: "UGC NET Psychology",
+        description: "Subject paper — Psychology",
+        examDate: daysFromNow(45, 14),
+        createdById: faculty.id,
+      },
+      {
+        title: "Internal Mock Test — CS101",
+        description: "Practice test covering Modules 1–2",
+        examDate: daysFromNow(2, 11),
+        createdById: faculty.id,
+      },
+    ],
+  });
+
   // One inactive sample session — an admin can activate it from
   // /academic-admin/attendance to try the live check-in flow end to end.
   await prisma.liveClassSession.create({
@@ -286,6 +322,8 @@ async function seedDemoAttendance() {
   console.log(
     `            everything; demo.student2 is about halfway; the rest are just starting.`
   );
+  console.log(`  exams:    4 exam countdowns seeded (CUET PG, UGC NET Paper I, UGC NET`);
+  console.log(`            Psychology, an internal mock test) — see /student/exams.`);
   console.log(`  ${records.length} attendance records created.`);
   console.log(`  1 sample live class session created (inactive) — activate it from`);
   console.log(`  /academic-admin/attendance to try the /attendance check-in flow.`);
