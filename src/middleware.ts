@@ -13,7 +13,13 @@ const PUBLIC_AUTH_ROUTES: string[] = [
   routes.resetPassword,
 ];
 
-const PROTECTED_PREFIXES = ["/student", "/faculty", "/academic-admin", "/super-admin"];
+const PROTECTED_PREFIXES = [
+  "/student",
+  "/faculty",
+  "/academic-admin",
+  "/super-admin",
+  "/attendance",
+];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

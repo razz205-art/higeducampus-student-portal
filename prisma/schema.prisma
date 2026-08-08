@@ -15,14 +15,16 @@ enum Role {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  passwordHash  String? // null for OAuth-only accounts
-  role          Role      @default(STUDENT)
-  isActive      Boolean   @default(true)
+  id                 String    @id @default(cuid())
+  name               String?
+  email              String    @unique
+  emailVerified      DateTime?
+  image              String?
+  passwordHash       String? // null for OAuth-only accounts
+  role               Role      @default(STUDENT)
+  isActive           Boolean   @default(true)
+  registrationNumber String?   @unique // students only; used on the attendance check-in form
+  batchId            String?
 
   // Brute-force protection
   failedLoginCount Int       @default(0)
@@ -36,7 +38,16 @@ model User {
   passwordResetTokens PasswordResetToken[]
   auditLogs            AuditLog[]
 
+  // Attendance module
+  batch              Batch?             @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  facultyCourses     Course[]           @relation("FacultyCourses")
+  enrollments        Enrollment[]
+  attendanceRecords  AttendanceRecord[] @relation("StudentAttendance")
+  markedAttendance   AttendanceRecord[] @relation("MarkedByFaculty")
+  liveClassSessions  LiveClassSession[] @relation("FacultyLiveSessions")
+
   @@index([role])
+  @@index([batchId])
   @@map("users")
 }
 
@@ -111,4 +122,133 @@ model AuditLog {
   @@index([event])
   @@index([userId])
   @@map("audit_logs")
+}
+
+/**
+ * Attendance module — minimal Course/Enrollment layer exists only to give
+ * attendance something to attach to (which student, in which course, marked
+ * by which faculty member). There is no course-catalog UI yet; courses are
+ * provisioned by an admin (e.g. via Prisma Studio) until that module ships.
+ */
+model Course {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  facultyId String
+  createdAt DateTime @default(now())
+
+  faculty     User               @relation("FacultyCourses", fields: [facultyId], references: [id], onDelete: Cascade)
+  enrollments Enrollment[]
+  attendance  AttendanceRecord[]
+  liveClassSessions LiveClassSession[]
+
+  @@index([facultyId])
+  @@map("courses")
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  studentId String
+  courseId  String
+  createdAt DateTime @default(now())
+
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([courseId])
+  @@map("enrollments")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+}
+
+/** How an attendance row was created — for audit clarity, not access control. */
+enum AttendanceSource {
+  FACULTY_ENTRY
+  SELF_CHECKIN
+  ADMIN_CORRECTION
+}
+
+model AttendanceRecord {
+  id         String           @id @default(cuid())
+  studentId  String
+  courseId   String
+  date       DateTime         @db.Date
+  status     AttendanceStatus
+  notes      String?
+  markedById String
+  source     AttendanceSource @default(FACULTY_ENTRY)
+  sessionId  String? // set when created via the live-class self check-in form
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  student  User              @relation("StudentAttendance", fields: [studentId], references: [id], onDelete: Cascade)
+  course   Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  markedBy User              @relation("MarkedByFaculty", fields: [markedById], references: [id], onDelete: Cascade)
+  session  LiveClassSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  // One status per student, per course, per day — this also doubles as the
+  // "no duplicate check-in" constraint for the self-checkin flow, since a
+  // check-in and a manual entry for the same day collide on this key.
+  @@unique([studentId, courseId, date])
+  @@index([studentId])
+  @@index([courseId, date])
+  @@index([sessionId])
+  @@map("attendance_records")
+}
+
+model Batch {
+  id        String @id @default(cuid())
+  name      String @unique // e.g. "2024 - 2028"
+  startYear Int
+  endYear   Int
+
+  students          User[]
+  liveClassSessions LiveClassSession[]
+
+  @@map("batches")
+}
+
+enum MeetingPlatform {
+  ZOOM
+  GOOGLE_MEET
+}
+
+/**
+ * A faculty-created live class. Faculty create these (isActive: false by
+ * default); an Admin then activates exactly one at a time via
+ * setActiveSessionAction, which is what actually opens the public
+ * check-in form at /attendance. There is no separate "attendance link per
+ * session" — the link is permanent, and it always resolves to whichever
+ * session (if any) is currently active.
+ */
+model LiveClassSession {
+  id           String          @id @default(cuid())
+  courseId     String
+  batchId      String? // if set, only students in this batch may check in
+  facultyId    String
+  subjectLabel String? // defaults to the course name when displayed if unset
+  date         DateTime        @db.Date
+  startTime    String // "HH:MM", display-only — the window is opened/closed manually
+  platform     MeetingPlatform
+  meetingLink  String
+  isActive     Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  course             Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  batch              Batch?             @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  faculty            User               @relation("FacultyLiveSessions", fields: [facultyId], references: [id], onDelete: Cascade)
+  attendanceRecords  AttendanceRecord[]
+
+  @@index([courseId])
+  @@index([facultyId])
+  @@index([isActive])
+  @@map("live_class_sessions")
 }

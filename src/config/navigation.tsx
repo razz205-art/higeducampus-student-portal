@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   GraduationCap,
   CalendarDays,
+  CalendarCheck2,
   MessagesSquare,
   Building2,
   Library,
@@ -50,6 +51,7 @@ export function getNavSections(role: Role): NavSection[] {
         {
           title: "Academics",
           items: [
+            { label: "Attendance", href: "/student/attendance", icon: CalendarCheck2 },
             { label: "My Courses", icon: BookOpen, comingSoon: true },
             { label: "Assignments", icon: ClipboardCheck, comingSoon: true },
             { label: "Grades", icon: GraduationCap, comingSoon: true },
@@ -72,7 +74,7 @@ export function getNavSections(role: Role): NavSection[] {
           items: [
             { label: "My Courses", icon: BookOpen, comingSoon: true },
             { label: "Gradebook", icon: ClipboardCheck, comingSoon: true },
-            { label: "Attendance", icon: GraduationCap, comingSoon: true },
+            { label: "Attendance", href: "/faculty/attendance", icon: CalendarCheck2 },
           ],
         },
         {
@@ -90,6 +92,7 @@ export function getNavSections(role: Role): NavSection[] {
         {
           title: "Administration",
           items: [
+            { label: "Attendance", href: "/academic-admin/attendance", icon: CalendarCheck2 },
             { label: "Departments", icon: Building2, comingSoon: true },
             { label: "Course Catalog", icon: Library, comingSoon: true },
             { label: "Faculty", icon: Users, comingSoon: true },
