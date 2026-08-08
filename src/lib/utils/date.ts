@@ -58,6 +58,22 @@ export function addMonthsUTC(date: Date, delta: number): Date {
   return toDateOnlyUTC(date.getUTCFullYear(), date.getUTCMonth() + delta, 1);
 }
 
+export function addDaysUTC(date: Date, delta: number): Date {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + delta);
+  return result;
+}
+
+/** Sunday (day 0) of the week containing `date`, matching Date#getUTCDay()'s 0=Sun..6=Sat. */
+export function getWeekStartUTC(date: Date): Date {
+  return addDaysUTC(date, -date.getUTCDay());
+}
+
+export function formatDayLabel(date: Date): string {
+  const WEEKDAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  return WEEKDAY[date.getUTCDay()]!;
+}
+
 export function isWeekendUTC(date: Date): boolean {
   const day = date.getUTCDay();
   return day === 0 || day === 6;

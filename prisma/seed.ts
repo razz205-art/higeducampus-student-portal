@@ -381,6 +381,53 @@ async function seedDemoAttendance() {
     });
   }
 
+  // --- Timetable demo data -------------------------------------------------
+  // CS101 meets Monday/Wednesday/Friday mornings, plus a Tuesday online lab.
+  await prisma.timetableSlot.createMany({
+    data: [
+      {
+        courseId: course.id,
+        batchId: batch.id,
+        dayOfWeek: 1, // Monday
+        startTime: "09:00",
+        endTime: "10:30",
+        location: "Room 118, CS Building",
+        meetingLink: "https://zoom.us/j/1234567890",
+        createdById: faculty.id,
+      },
+      {
+        courseId: course.id,
+        batchId: batch.id,
+        dayOfWeek: 3, // Wednesday
+        startTime: "09:00",
+        endTime: "10:30",
+        location: "Room 118, CS Building",
+        meetingLink: "https://zoom.us/j/1234567890",
+        createdById: faculty.id,
+      },
+      {
+        courseId: course.id,
+        batchId: batch.id,
+        dayOfWeek: 5, // Friday
+        startTime: "09:00",
+        endTime: "10:30",
+        location: "Room 118, CS Building",
+        meetingLink: "https://zoom.us/j/1234567890",
+        createdById: faculty.id,
+      },
+      {
+        courseId: course.id,
+        batchId: batch.id,
+        dayOfWeek: 2, // Tuesday
+        startTime: "14:00",
+        endTime: "15:30",
+        location: null,
+        meetingLink: "https://meet.google.com/abc-defg-hij",
+        createdById: faculty.id,
+      },
+    ],
+  });
+
   console.log("Seeded demo attendance data:");
   console.log(`  faculty:  demo.faculty@lms-portal.edu / DemoPass!123`);
   console.log(
@@ -397,6 +444,8 @@ async function seedDemoAttendance() {
   console.log(`  exams:    4 exam countdowns seeded (CUET PG, UGC NET Paper I, UGC NET`);
   console.log(`            Psychology, an internal mock test) — see /student/exams.`);
   console.log(`  notifications: 7 seeded across every category, 2 pinned — see /notifications.`);
+  console.log(`  timetable: CS101 meets Mon/Wed/Fri 9-10:30am + Tue 2-3:30pm — see`);
+  console.log(`             /student/timetable, /faculty/timetable, or /academic-admin/timetable.`);
   console.log(`  ${records.length} attendance records created.`);
   console.log(`  1 sample live class session created (inactive) — activate it from`);
   console.log(`  /academic-admin/attendance to try the /attendance check-in flow.`);

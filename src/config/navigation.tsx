@@ -68,7 +68,7 @@ export function getNavSections(role: Role): NavSection[] {
         {
           title: "Campus",
           items: [
-            { label: "Calendar", icon: CalendarDays, comingSoon: true },
+            { label: "Timetable", href: "/student/timetable", icon: CalendarDays },
             { label: "Messages", icon: MessagesSquare, comingSoon: true },
           ],
         },
@@ -88,7 +88,7 @@ export function getNavSections(role: Role): NavSection[] {
         {
           title: "Campus",
           items: [
-            { label: "Calendar", icon: CalendarDays, comingSoon: true },
+            { label: "Timetable", href: "/faculty/timetable", icon: CalendarDays },
             { label: "Messages", icon: MessagesSquare, comingSoon: true },
           ],
         },
@@ -101,6 +101,7 @@ export function getNavSections(role: Role): NavSection[] {
           title: "Administration",
           items: [
             { label: "Attendance", href: "/academic-admin/attendance", icon: CalendarCheck2 },
+            { label: "Timetable", href: "/academic-admin/timetable", icon: CalendarDays },
             { label: "Exam Countdown", href: "/academic-admin/exams", icon: Timer },
             { label: "Departments", icon: Building2, comingSoon: true },
             { label: "Course Catalog", icon: Library, comingSoon: true },
