@@ -8,9 +8,8 @@ import {
 } from "@/lib/actions/timetable";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import Badge from "@/components/ui/Badge";
+import { WEEKDAY_LONG } from "@/lib/utils/date";
 import type { TimetableSlotItem } from "@/types/timetable";
-
-const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function Row({ slot, onEdit }: { slot: TimetableSlotItem; onEdit: () => void }) {
   const [isPending, startTransition] = useTransition();
@@ -22,7 +21,7 @@ function Row({ slot, onEdit }: { slot: TimetableSlotItem; onEdit: () => void }) 
   }
 
   function remove() {
-    if (!confirm(`Remove ${slot.courseCode} on ${DAY_LABELS[slot.dayOfWeek]}?`)) return;
+    if (!confirm(`Remove ${slot.courseCode} on ${WEEKDAY_LONG[slot.dayOfWeek]}?`)) return;
     startTransition(() => {
       deleteTimetableSlotAction(slot.id);
     });
@@ -40,7 +39,7 @@ function Row({ slot, onEdit }: { slot: TimetableSlotItem; onEdit: () => void }) 
         </p>
       </td>
       <td className="px-5 py-3 text-ink-900/70">
-        <p>{DAY_LABELS[slot.dayOfWeek]}</p>
+        <p>{WEEKDAY_LONG[slot.dayOfWeek]}</p>
         <p className="flex items-center gap-1 text-xs text-ink-900/45">
           <Clock size={11} aria-hidden="true" />
           {slot.startTime} – {slot.endTime}

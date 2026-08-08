@@ -6,7 +6,7 @@ import {
   getAssignmentResults,
   getSemesterResults,
 } from "@/lib/data/results";
-import { buildReportResponse, parseFormat } from "@/lib/utils/report-export";
+import { buildReportResponse, parseFormat, checkReportRateLimit } from "@/lib/utils/report-export";
 import { formatISODate } from "@/lib/utils/date";
 
 /**
@@ -21,6 +21,11 @@ export async function GET(req: NextRequest) {
   }
   if (session.user.role !== "STUDENT" && session.user.role !== "SUPER_ADMIN") {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
+
+  const rateLimitError = checkReportRateLimit(session.user.id);
+  if (rateLimitError) {
+    return NextResponse.json({ error: rateLimitError.retryMessage }, { status: 429 });
   }
 
   const format = parseFormat(req.nextUrl.searchParams.get("format"));

@@ -7,6 +7,7 @@ import {
   formatMonthLabel,
   addMonthsUTC,
   daysInMonth,
+  WEEKDAY_SHORT,
 } from "@/lib/utils/date";
 import type {
   OverallProgress,
@@ -261,14 +262,13 @@ export async function getWeeklyActivity(studentId: string): Promise<ActivityPoin
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
 
-  const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const today = todayUTC();
   const points: ActivityPoint[] = [];
   for (let i = 6; i >= 0; i--) {
     const day = new Date(today);
     day.setUTCDate(day.getUTCDate() - i);
     const key = formatISODate(day);
-    points.push({ label: WEEKDAY[day.getUTCDay()]!, count: counts.get(key) ?? 0 });
+    points.push({ label: WEEKDAY_SHORT[day.getUTCDay()]!, count: counts.get(key) ?? 0 });
   }
   return points;
 }

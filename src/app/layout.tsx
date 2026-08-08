@@ -9,6 +9,11 @@ export const metadata: Metadata = {
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
+  // This is an internal institutional portal, not a public site — several
+  // pages (certificate verification especially) show real people's names.
+  // robots.txt already blocks crawling; this meta tag is defense-in-depth
+  // in case a deployment ever serves a different robots.txt.
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

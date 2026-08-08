@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
-import { formatMonthLabel, toDateOnlyUTC } from "@/lib/utils/date";
+import { formatMonthLabel, toDateOnlyUTC, WEEKDAY_SHORT } from "@/lib/utils/date";
 import type { CalendarDay } from "@/types/attendance";
-
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const STATUS_CELL_CLASSES: Record<string, string> = {
   PRESENT: "bg-signal-success/15 text-signal-success",
@@ -64,7 +62,7 @@ export default function MonthlyAttendanceCalendar({
       }
     >
       <div className="grid grid-cols-7 gap-1.5 text-center">
-        {WEEKDAY_LABELS.map((label) => (
+        {WEEKDAY_SHORT.map((label) => (
           <div
             key={label}
             className="text-[11px] font-medium uppercase tracking-wide text-ink-900/40"

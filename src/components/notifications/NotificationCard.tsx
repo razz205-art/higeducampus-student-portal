@@ -57,7 +57,19 @@ export default function NotificationCard({
         notification.isPinned ? "border-gold-500/40" : "border-ink-900/10"
       }`}
     >
-      <button onClick={handleToggle} className="flex w-full items-start gap-3 p-4 text-left">
+      <div
+        onClick={handleToggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleToggle();
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        className="flex w-full cursor-pointer items-start gap-3 p-4 text-left"
+      >
         {!isRead && (
           <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-gold-500" aria-label="Unread" />
         )}
@@ -83,41 +95,38 @@ export default function NotificationCard({
         <div className="flex shrink-0 items-center gap-1">
           {isAdmin && (
             <>
-              <span
+              <button
+                type="button"
                 onClick={handleTogglePin}
-                role="button"
-                tabIndex={0}
                 aria-label={notification.isPinned ? "Unpin" : "Pin"}
                 title={notification.isPinned ? "Unpin" : "Pin"}
                 className="rounded-sm p-1.5 text-ink-900/40 hover:bg-ink-900/5 hover:text-gold-600"
               >
                 <Pin size={14} aria-hidden="true" />
-              </span>
+              </button>
               {onEdit && (
-                <span
+                <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onEdit(notification);
                   }}
-                  role="button"
-                  tabIndex={0}
                   aria-label="Edit"
                   title="Edit"
                   className="rounded-sm p-1.5 text-ink-900/40 hover:bg-ink-900/5 hover:text-ink-900"
                 >
                   <Pencil size={14} aria-hidden="true" />
-                </span>
+                </button>
               )}
-              <span
+              <button
+                type="button"
                 onClick={handleDelete}
-                role="button"
-                tabIndex={0}
                 aria-label="Delete"
                 title="Delete"
                 className="rounded-sm p-1.5 text-ink-900/40 hover:bg-signal-error/10 hover:text-signal-error"
               >
                 <Trash2 size={14} aria-hidden="true" />
-              </span>
+              </button>
             </>
           )}
           <ChevronDown
@@ -126,7 +135,7 @@ export default function NotificationCard({
             aria-hidden="true"
           />
         </div>
-      </button>
+      </div>
 
       {isOpen && (
         <div className="border-ink-900/8 border-t px-4 py-3 pl-8">

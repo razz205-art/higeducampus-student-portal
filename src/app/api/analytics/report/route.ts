@@ -6,7 +6,7 @@ import {
   getAssignmentCompletionRates,
   getFacultyPerformance,
 } from "@/lib/data/admin-analytics";
-import { buildReportResponse, parseFormat } from "@/lib/utils/report-export";
+import { buildReportResponse, parseFormat, checkReportRateLimit } from "@/lib/utils/report-export";
 import { formatISODate } from "@/lib/utils/date";
 
 function isAdmin(role: string | undefined): boolean {
@@ -25,6 +25,11 @@ export async function GET(req: NextRequest) {
   }
   if (!isAdmin(session.user.role)) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
+
+  const rateLimitError = checkReportRateLimit(session.user.id);
+  if (rateLimitError) {
+    return NextResponse.json({ error: rateLimitError.retryMessage }, { status: 429 });
   }
 
   const format = parseFormat(req.nextUrl.searchParams.get("format"));

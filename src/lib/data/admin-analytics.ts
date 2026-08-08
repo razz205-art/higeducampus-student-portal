@@ -80,26 +80,32 @@ export async function getInstitutionAttendanceTrend(
   monthsBack = 6
 ): Promise<AttendanceTrendPoint[]> {
   const now = todayUTC();
-  const points: AttendanceTrendPoint[] = [];
+  const monthDates = Array.from({ length: monthsBack }, (_, idx) => {
+    const i = monthsBack - 1 - idx;
+    return addMonthsUTC(toDateOnlyUTC(now.getUTCFullYear(), now.getUTCMonth(), 1), -i);
+  });
 
-  for (let i = monthsBack - 1; i >= 0; i--) {
-    const monthDate = addMonthsUTC(toDateOnlyUTC(now.getUTCFullYear(), now.getUTCMonth(), 1), -i);
-    const year = monthDate.getUTCFullYear();
-    const monthIndex = monthDate.getUTCMonth();
-    const start = toDateOnlyUTC(year, monthIndex, 1);
-    const end = toDateOnlyUTC(year, monthIndex, daysInMonth(year, monthIndex));
+  // Independent per-month queries — run concurrently instead of one
+  // sequential round-trip per month.
+  const points = await Promise.all(
+    monthDates.map(async (monthDate) => {
+      const year = monthDate.getUTCFullYear();
+      const monthIndex = monthDate.getUTCMonth();
+      const start = toDateOnlyUTC(year, monthIndex, 1);
+      const end = toDateOnlyUTC(year, monthIndex, daysInMonth(year, monthIndex));
 
-    const records = await prisma.attendanceRecord.findMany({
-      where: { date: { gte: start, lte: end } },
-      select: { status: true },
-    });
+      const records = await prisma.attendanceRecord.findMany({
+        where: { date: { gte: start, lte: end } },
+        select: { status: true },
+      });
 
-    const total = records.length;
-    const present = records.filter((r: { status: string }) => r.status === "PRESENT").length;
-    const percentage = total > 0 ? Math.round((present / total) * 1000) / 10 : 0;
+      const total = records.length;
+      const present = records.filter((r: { status: string }) => r.status === "PRESENT").length;
+      const percentage = total > 0 ? Math.round((present / total) * 1000) / 10 : 0;
 
-    points.push({ month: formatMonthLabel(monthDate), percentage });
-  }
+      return { month: formatMonthLabel(monthDate), percentage };
+    })
+  );
 
   return points;
 }
@@ -124,25 +130,29 @@ export async function getEnrollmentByBatch(): Promise<BatchEnrollmentPoint[]> {
  * ActivityChart already built for Progress Tracker, reused as-is. */
 export async function getStudentGrowth(monthsBack = 6): Promise<ActivityPoint[]> {
   const now = todayUTC();
-  const points: ActivityPoint[] = [];
+  const monthDates = Array.from({ length: monthsBack }, (_, idx) => {
+    const i = monthsBack - 1 - idx;
+    return addMonthsUTC(toDateOnlyUTC(now.getUTCFullYear(), now.getUTCMonth(), 1), -i);
+  });
 
-  for (let i = monthsBack - 1; i >= 0; i--) {
-    const monthDate = addMonthsUTC(toDateOnlyUTC(now.getUTCFullYear(), now.getUTCMonth(), 1), -i);
-    const year = monthDate.getUTCFullYear();
-    const monthIndex = monthDate.getUTCMonth();
-    const start = toDateOnlyUTC(year, monthIndex, 1);
-    const end = toDateOnlyUTC(year, monthIndex, daysInMonth(year, monthIndex));
-    // Month boundaries here are date-only, but User.createdAt is a full
-    // timestamp — extend the end bound to the start of the next day so the
-    // last day of the month isn't cut off by its own midnight.
-    const endExclusive = addDaysUTC(end, 1);
+  const points = await Promise.all(
+    monthDates.map(async (monthDate) => {
+      const year = monthDate.getUTCFullYear();
+      const monthIndex = monthDate.getUTCMonth();
+      const start = toDateOnlyUTC(year, monthIndex, 1);
+      const end = toDateOnlyUTC(year, monthIndex, daysInMonth(year, monthIndex));
+      // Month boundaries here are date-only, but User.createdAt is a full
+      // timestamp — extend the end bound to the start of the next day so
+      // the last day of the month isn't cut off by its own midnight.
+      const endExclusive = addDaysUTC(end, 1);
 
-    const count = await prisma.user.count({
-      where: { role: "STUDENT", createdAt: { gte: start, lt: endExclusive } },
-    });
+      const count = await prisma.user.count({
+        where: { role: "STUDENT", createdAt: { gte: start, lt: endExclusive } },
+      });
 
-    points.push({ label: formatMonthLabel(monthDate), count });
-  }
+      return { label: formatMonthLabel(monthDate), count };
+    })
+  );
 
   return points;
 }
@@ -179,11 +189,23 @@ export async function getCourseCompletionRates(): Promise<CourseCompletionRow[]>
     }
 
     let completedCount = 0;
-    for (const enrollment of course.enrollments) {
-      const doneCount = await prisma.lessonCompletion.count({
-        where: { studentId: enrollment.studentId, lessonId: { in: lessonIds } },
-      });
-      if (doneCount === lessonIds.length) completedCount++;
+    const studentIds = course.enrollments.map((e: { studentId: string }) => e.studentId);
+    // Single query for every enrolled student's completions in this course,
+    // instead of one query per student (was N+1: 500 students would mean
+    // 500 round-trips here before this fix).
+    const completions = await prisma.lessonCompletion.findMany({
+      where: { studentId: { in: studentIds }, lessonId: { in: lessonIds } },
+      select: { studentId: true },
+    });
+    const completionCountByStudent = new Map<string, number>();
+    for (const c of completions) {
+      completionCountByStudent.set(
+        c.studentId,
+        (completionCountByStudent.get(c.studentId) ?? 0) + 1
+      );
+    }
+    for (const studentId of studentIds) {
+      if ((completionCountByStudent.get(studentId) ?? 0) === lessonIds.length) completedCount++;
     }
 
     rows.push({
@@ -344,27 +366,31 @@ export async function getDailyActiveUsers(days = 14): Promise<ActivityPoint[]> {
 
 export async function getMonthlyActiveUsers(monthsBack = 6): Promise<ActivityPoint[]> {
   const now = todayUTC();
-  const points: ActivityPoint[] = [];
+  const monthDates = Array.from({ length: monthsBack }, (_, idx) => {
+    const i = monthsBack - 1 - idx;
+    return addMonthsUTC(toDateOnlyUTC(now.getUTCFullYear(), now.getUTCMonth(), 1), -i);
+  });
 
-  for (let i = monthsBack - 1; i >= 0; i--) {
-    const monthDate = addMonthsUTC(toDateOnlyUTC(now.getUTCFullYear(), now.getUTCMonth(), 1), -i);
-    const year = monthDate.getUTCFullYear();
-    const monthIndex = monthDate.getUTCMonth();
-    const start = toDateOnlyUTC(year, monthIndex, 1);
-    const end = addDaysUTC(toDateOnlyUTC(year, monthIndex, daysInMonth(year, monthIndex)), 1);
+  const points = await Promise.all(
+    monthDates.map(async (monthDate) => {
+      const year = monthDate.getUTCFullYear();
+      const monthIndex = monthDate.getUTCMonth();
+      const start = toDateOnlyUTC(year, monthIndex, 1);
+      const end = addDaysUTC(toDateOnlyUTC(year, monthIndex, daysInMonth(year, monthIndex)), 1);
 
-    const logins = await prisma.auditLog.findMany({
-      where: {
-        event: { in: LOGIN_EVENTS },
-        createdAt: { gte: start, lt: end },
-        userId: { not: null },
-      },
-      select: { userId: true },
-    });
+      const logins = await prisma.auditLog.findMany({
+        where: {
+          event: { in: LOGIN_EVENTS },
+          createdAt: { gte: start, lt: end },
+          userId: { not: null },
+        },
+        select: { userId: true },
+      });
 
-    const distinctUsers = new Set(logins.map((l: { userId: string | null }) => l.userId));
-    points.push({ label: formatMonthLabel(monthDate), count: distinctUsers.size });
-  }
+      const distinctUsers = new Set(logins.map((l: { userId: string | null }) => l.userId));
+      return { label: formatMonthLabel(monthDate), count: distinctUsers.size };
+    })
+  );
 
   return points;
 }

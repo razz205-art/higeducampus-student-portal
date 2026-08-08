@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { formatISODate } from "@/lib/utils/date";
-import { buildReportResponse, parseFormat } from "@/lib/utils/report-export";
+import { buildReportResponse, parseFormat, checkReportRateLimit } from "@/lib/utils/report-export";
 
 /**
  * Downloads every attendance record for one course. Faculty may only
@@ -13,6 +13,11 @@ export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const rateLimitError = checkReportRateLimit(session.user.id);
+  if (rateLimitError) {
+    return NextResponse.json({ error: rateLimitError.retryMessage }, { status: 429 });
   }
 
   const courseId = req.nextUrl.searchParams.get("courseId");

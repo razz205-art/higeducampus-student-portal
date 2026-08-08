@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
 import { toCsv } from "@/lib/utils/csv";
+import { rateLimit } from "@/lib/security/rate-limit";
 import type { ReportFormat } from "@/types/attendance";
 
 async function buildXlsx(title: string, headers: string[], rows: (string | number)[][]) {
@@ -107,4 +108,18 @@ export async function buildReportResponse(
 
 export function parseFormat(value: string | null): ReportFormat {
   return value === "xlsx" || value === "pdf" ? value : "csv";
+}
+
+/**
+ * Shared rate limit for every report-export route (Attendance, Results,
+ * Analytics, Certificates) — PDF/Excel generation is CPU-intensive, so
+ * this is one policy in one place rather than copy-pasted per route.
+ * Returns null if the request may proceed.
+ */
+export function checkReportRateLimit(userId: string): { retryMessage: string } | null {
+  const { success } = rateLimit(`report-export:${userId}`, {
+    limit: 20,
+    windowMs: 60 * 60 * 1000,
+  });
+  return success ? null : { retryMessage: "Too many report downloads. Please try again later." };
 }

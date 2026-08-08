@@ -69,9 +69,20 @@ export function getWeekStartUTC(date: Date): Date {
   return addDaysUTC(date, -date.getUTCDay());
 }
 
+export const WEEKDAY_LONG = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+export const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 export function formatDayLabel(date: Date): string {
-  const WEEKDAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  return WEEKDAY[date.getUTCDay()]!;
+  return WEEKDAY_LONG[date.getUTCDay()]!;
 }
 
 export function isWeekendUTC(date: Date): boolean {
