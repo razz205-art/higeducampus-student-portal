@@ -9,6 +9,7 @@
  */
 import { PrismaClient, Role, AttendanceStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
 
 const prisma = new PrismaClient();
 
@@ -506,6 +507,24 @@ async function seedDemoAttendance() {
     ],
   });
 
+  // --- Certificate module demo data ----------------------------------------
+  // demo.student1 completed every seeded lesson (see progress demo data
+  // above), so they're eligible for a real certificate on CS101.
+  const topStudent = students[0]!;
+  await prisma.certificate.upsert({
+    where: { studentId_courseId: { studentId: topStudent.id, courseId: course.id } },
+    update: {},
+    create: {
+      studentId: topStudent.id,
+      courseId: course.id,
+      certificateNumber: `HEC-${new Date().getFullYear()}-00001`,
+      verificationCode: randomBytes(16).toString("hex"),
+      studentName: topStudent.name ?? topStudent.email,
+      courseName: course.name,
+      courseCode: course.code,
+    },
+  });
+
   console.log("Seeded demo attendance data:");
   console.log(`  faculty:  demo.faculty@lms-portal.edu / DemoPass!123`);
   console.log(
@@ -526,6 +545,7 @@ async function seedDemoAttendance() {
   console.log(`             /student/timetable, /faculty/timetable, or /academic-admin/timetable.`);
   console.log(`  results:  Semester 1 published for student1/2/3 (92%/78%/65%) — see`);
   console.log(`            /student/results (log in as demo.student1 for the top rank).`);
+  console.log(`  certificates: 1 issued for demo.student1 (CS101) — see /student/certificates.`);
   console.log(`  ${records.length} attendance records created.`);
   console.log(`  1 sample live class session created (inactive) — activate it from`);
   console.log(`  /academic-admin/attendance to try the /attendance check-in flow.`);
