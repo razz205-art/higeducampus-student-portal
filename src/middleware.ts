@@ -19,6 +19,7 @@ const PROTECTED_PREFIXES = [
   "/academic-admin",
   "/super-admin",
   "/attendance",
+  "/notifications",
 ];
 
 export default auth((req) => {

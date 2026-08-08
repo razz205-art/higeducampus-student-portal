@@ -54,6 +54,10 @@ model User {
   // Exam countdown module
   createdExams Exam[] @relation("ExamCreatedBy")
 
+  // Notification center module
+  createdNotifications Notification[]     @relation("NotificationCreatedBy")
+  notificationReads    NotificationRead[]
+
   @@index([role])
   @@index([batchId])
   @@map("users")
@@ -400,4 +404,77 @@ model Exam {
   @@index([examDate])
   @@index([isActive])
   @@map("exams")
+}
+
+/**
+ * Notification center — institution-wide broadcast messages, authored by
+ * Academic Admin / Super Admin, visible to every role. Attachments are
+ * stored as URL references (image/PDF/video hosted externally), not file
+ * uploads: this project has no storage provider configured (S3/R2/
+ * Cloudinary etc.) — adding real upload handling is a legitimate future
+ * infrastructure decision, not something to fake with local disk storage
+ * in a serverless-friendly app. Read status is per-user, via a join table,
+ * since a notification is broadcast to many users at once.
+ */
+enum NotificationCategory {
+  ANNOUNCEMENT
+  EXAM_UPDATE
+  SCHEDULE_CHANGE
+  ASSIGNMENT_REMINDER
+  FEE_REMINDER
+  HOLIDAY_NOTICE
+  PLACEMENT_UPDATE
+}
+
+enum AttachmentType {
+  IMAGE
+  PDF
+  VIDEO
+}
+
+model Notification {
+  id          String               @id @default(cuid())
+  title       String
+  body        String               @db.Text
+  category    NotificationCategory
+  isPinned    Boolean              @default(false)
+  createdById String
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  createdBy   User                     @relation("NotificationCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  attachments NotificationAttachment[]
+  reads       NotificationRead[]
+
+  @@index([category])
+  @@index([isPinned])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model NotificationAttachment {
+  id             String         @id @default(cuid())
+  notificationId String
+  type           AttachmentType
+  url            String
+  label          String?
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+  @@map("notification_attachments")
+}
+
+model NotificationRead {
+  id             String   @id @default(cuid())
+  userId         String
+  notificationId String
+  readAt         DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationId])
+  @@index([userId])
+  @@map("notification_reads")
 }

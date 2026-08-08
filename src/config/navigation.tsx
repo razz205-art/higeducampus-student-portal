@@ -7,6 +7,7 @@ import {
   Timer,
   CalendarDays,
   CalendarCheck2,
+  Bell,
   MessagesSquare,
   Building2,
   Library,
@@ -44,11 +45,16 @@ export function getNavSections(role: Role): NavSection[] {
     href: ROLE_HOME[role],
     icon: LayoutDashboard,
   };
+  const notifications: NavItem = {
+    label: "Notifications",
+    href: "/notifications",
+    icon: Bell,
+  };
 
   switch (role) {
     case "STUDENT":
       return [
-        { items: [overview] },
+        { items: [overview, notifications] },
         {
           title: "Academics",
           items: [
@@ -70,7 +76,7 @@ export function getNavSections(role: Role): NavSection[] {
 
     case "FACULTY":
       return [
-        { items: [overview] },
+        { items: [overview, notifications] },
         {
           title: "Teaching",
           items: [
@@ -90,7 +96,7 @@ export function getNavSections(role: Role): NavSection[] {
 
     case "ACADEMIC_ADMIN":
       return [
-        { items: [overview] },
+        { items: [overview, notifications] },
         {
           title: "Administration",
           items: [
@@ -109,7 +115,7 @@ export function getNavSections(role: Role): NavSection[] {
 
     case "SUPER_ADMIN":
       return [
-        { items: [overview] },
+        { items: [overview, notifications] },
         {
           title: "Platform",
           items: [
@@ -127,6 +133,6 @@ export function getNavSections(role: Role): NavSection[] {
       ];
 
     default:
-      return [{ items: [overview] }];
+      return [{ items: [overview, notifications] }];
   }
 }

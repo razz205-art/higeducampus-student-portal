@@ -1,21 +1,57 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Bell, BellOff } from "lucide-react";
+import { markNotificationReadAction } from "@/lib/actions/notifications";
+import { formatRelativeTime } from "@/lib/utils/date";
+import { CATEGORY_CONFIG } from "@/config/notification-categories";
+import type { NotificationSummary } from "@/types/notification";
 
-/**
- * Placeholder data hook: no notifications module/backend exists yet.
- * Swap this for a real fetch/subscription once one does — the panel below
- * already handles both the empty and populated cases.
- */
-function useNotifications() {
-  return { items: [] as { id: string; title: string; timestamp: string }[], unreadCount: 0 };
+const POLL_INTERVAL_MS = 60_000;
+
+function useNotificationSummary() {
+  const [items, setItems] = useState<NotificationSummary[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const res = await fetch("/api/notifications/summary");
+        if (!res.ok || cancelled) return;
+        const data: { unreadCount: number; recent: NotificationSummary[] } = await res.json();
+        if (!cancelled) {
+          setItems(data.recent);
+          setUnreadCount(data.unreadCount);
+        }
+      } catch {
+        // Silently skip — the bell just keeps showing its last known state.
+      }
+    }
+
+    load();
+    const interval = setInterval(load, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+  function markRead(id: string) {
+    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+    setUnreadCount((c) => Math.max(c - 1, 0));
+    markNotificationReadAction(id);
+  }
+
+  return { items, unreadCount, markRead };
 }
 
 export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { items, unreadCount } = useNotifications();
+  const { items, unreadCount, markRead } = useNotificationSummary();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -59,8 +95,15 @@ export default function NotificationBell() {
           aria-label="Notifications"
           className="absolute right-0 z-40 mt-2 w-80 max-w-[90vw] rounded-sm border border-ink-900/10 bg-white shadow-xl"
         >
-          <div className="border-b border-ink-900/10 px-4 py-3">
+          <div className="flex items-center justify-between border-b border-ink-900/10 px-4 py-3">
             <p className="text-sm font-semibold text-ink-900">Notifications</p>
+            <Link
+              href="/notifications"
+              onClick={() => setIsOpen(false)}
+              className="text-xs font-medium text-gold-600 hover:underline"
+            >
+              View all
+            </Link>
           </div>
 
           {items.length === 0 ? (
@@ -74,9 +117,30 @@ export default function NotificationBell() {
           ) : (
             <ul className="max-h-80 overflow-y-auto">
               {items.map((item) => (
-                <li key={item.id} className="border-b border-ink-900/5 px-4 py-3 last:border-0">
-                  <p className="text-sm text-ink-900">{item.title}</p>
-                  <p className="mt-0.5 text-xs text-ink-900/45">{item.timestamp}</p>
+                <li key={item.id} className="border-b border-ink-900/5 last:border-0">
+                  <button
+                    onClick={() => markRead(item.id)}
+                    className="flex w-full items-start gap-2 px-4 py-3 text-left hover:bg-ink-900/[0.02]"
+                  >
+                    {!item.isRead && (
+                      <span
+                        className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gold-500"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <span className={item.isRead ? "min-w-0 flex-1 pl-3.5" : "min-w-0 flex-1"}>
+                      <span
+                        className={`block truncate text-sm ${item.isRead ? "text-ink-900/60" : "font-medium text-ink-900"}`}
+                      >
+                        {item.title}
+                      </span>
+                      <span className="mt-0.5 flex items-center gap-1.5 text-xs text-ink-900/45">
+                        {CATEGORY_CONFIG[item.category as keyof typeof CATEGORY_CONFIG]?.label}
+                        <span>&middot;</span>
+                        {formatRelativeTime(item.createdAt)}
+                      </span>
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>

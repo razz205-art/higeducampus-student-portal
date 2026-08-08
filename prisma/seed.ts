@@ -309,6 +309,78 @@ async function seedDemoAttendance() {
     },
   });
 
+  // --- Notification center demo data --------------------------------------
+  const notificationDefs = [
+    {
+      title: "Welcome to the new semester",
+      body: "We're excited to kick off the new semester! Please review your course schedule and reach out to your faculty advisor with any questions.",
+      category: "ANNOUNCEMENT" as const,
+      isPinned: true,
+      attachments: [] as { type: "IMAGE" | "PDF" | "VIDEO"; url: string; label?: string }[],
+    },
+    {
+      title: "CUET PG 2026 admit cards released",
+      body: "Admit cards for CUET PG 2026 are now available. Download yours from the official portal before the exam date.",
+      category: "EXAM_UPDATE" as const,
+      isPinned: true,
+      attachments: [],
+    },
+    {
+      title: "CS101 lecture moved to Room 118",
+      body: "Monday's Introduction to Programming lecture has been relocated from Room 204 to Room 118 for this week only.",
+      category: "SCHEDULE_CHANGE" as const,
+      isPinned: false,
+      attachments: [],
+    },
+    {
+      title: "Assignment 2 due Friday",
+      body: "A reminder that the Sorting Exercise assignment for CS101 is due this Friday at 11:59 PM. Late submissions will not be accepted.",
+      category: "ASSIGNMENT_REMINDER" as const,
+      isPinned: false,
+      attachments: [],
+    },
+    {
+      title: "Semester fee payment reminder",
+      body: "This is a reminder that semester fees are due by the end of the month. Please contact the accounts office if you need a payment plan.",
+      category: "FEE_REMINDER" as const,
+      isPinned: false,
+      attachments: [],
+    },
+    {
+      title: "Campus closed for Independence Day",
+      body: "The campus will be closed on August 15th in observance of Independence Day. Classes resume the following day.",
+      category: "HOLIDAY_NOTICE" as const,
+      isPinned: false,
+      attachments: [],
+    },
+    {
+      title: "Placement drive: TechCorp hiring",
+      body: "TechCorp will be conducting an on-campus placement drive next month for final-year students. Registration details and eligibility criteria are attached.",
+      category: "PLACEMENT_UPDATE" as const,
+      isPinned: false,
+      attachments: [
+        {
+          type: "PDF" as const,
+          url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+          label: "Eligibility criteria (PDF)",
+        },
+      ],
+    },
+  ];
+
+  for (const def of notificationDefs) {
+    await prisma.notification.create({
+      data: {
+        title: def.title,
+        body: def.body,
+        category: def.category,
+        isPinned: def.isPinned,
+        createdById: faculty.id,
+        attachments: { create: def.attachments },
+      },
+    });
+  }
+
   console.log("Seeded demo attendance data:");
   console.log(`  faculty:  demo.faculty@lms-portal.edu / DemoPass!123`);
   console.log(
@@ -324,6 +396,7 @@ async function seedDemoAttendance() {
   );
   console.log(`  exams:    4 exam countdowns seeded (CUET PG, UGC NET Paper I, UGC NET`);
   console.log(`            Psychology, an internal mock test) — see /student/exams.`);
+  console.log(`  notifications: 7 seeded across every category, 2 pinned — see /notifications.`);
   console.log(`  ${records.length} attendance records created.`);
   console.log(`  1 sample live class session created (inactive) — activate it from`);
   console.log(`  /academic-admin/attendance to try the /attendance check-in flow.`);
