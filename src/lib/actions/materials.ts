@@ -16,7 +16,7 @@ function isAdmin(role: string | undefined): boolean {
 
 const materialSchema = z.object({
   courseId: z.string().min(1, "Choose a course."),
-  moduleId: z.string().min(1).optional(),
+  moduleId: z.string().min(1, "Choose or create a chapter."),
   title: z.string().trim().min(2, "Enter a title.").max(150),
   description: z.string().trim().max(500).optional(),
   type: z.enum(["DOCUMENT", "VIDEO", "LINK"]),
@@ -41,7 +41,7 @@ export async function createMaterialAction(
   await prisma.studyMaterial.create({
     data: {
       courseId: parsed.data.courseId,
-      moduleId: parsed.data.moduleId || null,
+      moduleId: parsed.data.moduleId,
       title: parsed.data.title,
       description: parsed.data.description || null,
       type: parsed.data.type,

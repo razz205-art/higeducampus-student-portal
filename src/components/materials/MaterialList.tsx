@@ -130,7 +130,7 @@ function ChapterSection({
         <span className="flex items-center gap-2.5">
           <FolderOpen size={15} className="text-gold-600" aria-hidden="true" />
           <span className="text-sm font-semibold text-ink-900">
-            {group.name ?? "Other Materials"}
+            {group.name ?? "Ungrouped (added before chapters were required)"}
           </span>
           <span className="text-xs text-ink-900/40">
             {group.items.length} item{group.items.length === 1 ? "" : "s"}

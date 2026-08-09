@@ -47,7 +47,7 @@ function MaterialForm({
     startTransition(async () => {
       const res = await createMaterialAction({
         courseId,
-        moduleId: moduleId || undefined,
+        moduleId: moduleId,
         title,
         description: description || undefined,
         type,
@@ -167,7 +167,7 @@ function MaterialForm({
               onChange={(e) => setModuleId(e.target.value)}
               className="w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
             >
-              <option value="">No chapter</option>
+              {chapters.length === 0 && <option value="">No chapters yet — add one first</option>}
               {chapters.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.order}. {c.title}
@@ -216,7 +216,17 @@ function MaterialForm({
           />
         </div>
       </div>
-      <Button type="submit" isLoading={isPending} className="sm:w-auto sm:px-8">
+      {!moduleId && (
+        <p className="text-xs text-ink-900/45">
+          Choose or create a chapter above before adding the material.
+        </p>
+      )}
+      <Button
+        type="submit"
+        isLoading={isPending}
+        disabled={!moduleId}
+        className="sm:w-auto sm:px-8"
+      >
         Add material
       </Button>
     </form>
