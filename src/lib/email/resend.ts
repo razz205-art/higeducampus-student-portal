@@ -1,6 +1,15 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Constructed lazily, inside each send function, not at module scope.
+// The Resend SDK throws synchronously if given an empty/undefined API key —
+// Resend is meant to be optional (only needed for password-reset emails),
+// so constructing it eagerly at import time would crash the whole app
+// (including Next.js's build-time page-data collection) for anyone who
+// hasn't configured RESEND_API_KEY yet.
+function getResendClient(): Resend {
+  return new Resend(process.env.RESEND_API_KEY);
+}
+
 const FROM = process.env.EMAIL_FROM ?? "LMS Portal <no-reply@lms-portal.edu>";
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
@@ -22,7 +31,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
     </p>
   </div>`;
 
-  return resend.emails.send({
+  return getResendClient().emails.send({
     from: FROM,
     to,
     subject: "Reset your LMS Portal password",
@@ -40,7 +49,7 @@ export async function sendPasswordChangedNotice(to: string) {
     </p>
   </div>`;
 
-  return resend.emails.send({
+  return getResendClient().emails.send({
     from: FROM,
     to,
     subject: "Your LMS Portal password was changed",
