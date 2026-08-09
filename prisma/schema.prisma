@@ -149,12 +149,10 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-/**
- * Attendance module — minimal Course/Enrollment layer exists only to give
- * attendance something to attach to (which student, in which course, marked
- * by which faculty member). There is no course-catalog UI yet; courses are
- * provisioned by an admin (e.g. via Prisma Studio) until that module ships.
- */
+// Attendance module — minimal Course/Enrollment layer exists only to give
+// attendance something to attach to (which student, in which course, marked
+// by which faculty member). There is no course-catalog UI yet; courses are
+// provisioned by an admin (e.g. via Prisma Studio) until that module ships.
 model Course {
   id        String   @id @default(cuid())
   code      String   @unique
@@ -198,7 +196,7 @@ enum AttendanceStatus {
   LEAVE
 }
 
-/** How an attendance row was created — for audit clarity, not access control. */
+// How an attendance row was created — for audit clarity, not access control.
 enum AttendanceSource {
   FACULTY_ENTRY
   SELF_CHECKIN
@@ -253,14 +251,12 @@ enum MeetingPlatform {
   GOOGLE_MEET
 }
 
-/**
- * A faculty-created live class. Faculty create these (isActive: false by
- * default); an Admin then activates exactly one at a time via
- * setActiveSessionAction, which is what actually opens the public
- * check-in form at /attendance. There is no separate "attendance link per
- * session" — the link is permanent, and it always resolves to whichever
- * session (if any) is currently active.
- */
+// A faculty-created live class. Faculty create these (isActive: false by
+// default); an Admin then activates exactly one at a time via
+// setActiveSessionAction, which is what actually opens the public
+// check-in form at /attendance. There is no separate "attendance link per
+// session" — the link is permanent, and it always resolves to whichever
+// session (if any) is currently active.
 model LiveClassSession {
   id           String          @id @default(cuid())
   courseId     String
@@ -286,15 +282,13 @@ model LiveClassSession {
   @@map("live_class_sessions")
 }
 
-/**
- * Progress tracker module — Module/Lesson give course content something to
- * track completion against; Quiz/Assignment give the tracker real score
- * and submission data to summarize. There is no content-authoring or
- * quiz-taking/assignment-submission UI yet (that's its own future module);
- * these rows are provisioned by an admin/faculty member (e.g. via Prisma
- * Studio) the same way Course/Enrollment are today, and the seed script's
- * demo data extension populates a realistic set for local development.
- */
+// Progress tracker module — Module/Lesson give course content something to
+// track completion against; Quiz/Assignment give the tracker real score
+// and submission data to summarize. There is no content-authoring or
+// quiz-taking/assignment-submission UI yet (that's its own future module);
+// these rows are provisioned by an admin/faculty member (e.g. via Prisma
+// Studio) the same way Course/Enrollment are today, and the seed script's
+// demo data extension populates a realistic set for local development.
 model Module {
   id        String   @id @default(cuid())
   courseId  String
@@ -408,12 +402,10 @@ model AssignmentSubmission {
   @@map("assignment_submissions")
 }
 
-/**
- * Exam countdown module — standalone from Course (CUET PG, UGC NET, etc.
- * are institution-wide exams, not tied to a single enrolled course).
- * examDate is a real timestamp (not @db.Date) since the countdown needs
- * hour/minute/second precision.
- */
+// Exam countdown module — standalone from Course (CUET PG, UGC NET, etc.
+// are institution-wide exams, not tied to a single enrolled course).
+// examDate is a real timestamp (not @db.Date) since the countdown needs
+// hour/minute/second precision.
 model Exam {
   id          String   @id @default(cuid())
   title       String
@@ -431,16 +423,14 @@ model Exam {
   @@map("exams")
 }
 
-/**
- * Notification center — institution-wide broadcast messages, authored by
- * Academic Admin / Super Admin, visible to every role. Attachments are
- * stored as URL references (image/PDF/video hosted externally), not file
- * uploads: this project has no storage provider configured (S3/R2/
- * Cloudinary etc.) — adding real upload handling is a legitimate future
- * infrastructure decision, not something to fake with local disk storage
- * in a serverless-friendly app. Read status is per-user, via a join table,
- * since a notification is broadcast to many users at once.
- */
+// Notification center — institution-wide broadcast messages, authored by
+// Academic Admin / Super Admin, visible to every role. Attachments are
+// stored as URL references (image/PDF/video hosted externally), not file
+// uploads: this project has no storage provider configured (S3/R2/
+// Cloudinary etc.) — adding real upload handling is a legitimate future
+// infrastructure decision, not something to fake with local disk storage
+// in a serverless-friendly app. Read status is per-user, via a join table,
+// since a notification is broadcast to many users at once.
 enum NotificationCategory {
   ANNOUNCEMENT
   EXAM_UPDATE
@@ -504,16 +494,14 @@ model NotificationRead {
   @@map("notification_reads")
 }
 
-/**
- * Timetable module — a RECURRING weekly schedule (e.g. "CS101 meets Mon/
- * Wed/Fri 9:00-10:30"), distinct from LiveClassSession (a one-off live
- * class instance used for attendance check-in). Subject and Faculty are
- * derived from the linked Course, not duplicated here. There is no
- * per-occurrence exception model (e.g. "cancel just this Wednesday") —
- * isActive turns a slot off for every future week, not a single date.
- * That is a deliberate scope decision, flagged here and in the module's
- * summary, not an oversight.
- */
+// Timetable module — a RECURRING weekly schedule (e.g. "CS101 meets Mon/
+// Wed/Fri 9:00-10:30"), distinct from LiveClassSession (a one-off live
+// class instance used for attendance check-in). Subject and Faculty are
+// derived from the linked Course, not duplicated here. There is no
+// per-occurrence exception model (e.g. "cancel just this Wednesday") —
+// isActive turns a slot off for every future week, not a single date.
+// That is a deliberate scope decision, flagged here and in the module's
+// summary, not an oversight.
 model TimetableSlot {
   id          String   @id @default(cuid())
   courseId    String
@@ -537,14 +525,12 @@ model TimetableSlot {
   @@map("timetable_slots")
 }
 
-/**
- * Results module — Internal Results and Mock Tests are read from the
- * existing Quiz/QuizAttempt data (differentiated by Quiz.kind), and
- * Assignments from the existing AssignmentSubmission data — reused, not
- * duplicated. SemesterResult is the one genuinely new entity: the
- * official, admin-published record for a student's semester (GPA,
- * percentage, per-course grades), which Batch Rank is computed from.
- */
+// Results module — Internal Results and Mock Tests are read from the
+// existing Quiz/QuizAttempt data (differentiated by Quiz.kind), and
+// Assignments from the existing AssignmentSubmission data — reused, not
+// duplicated. SemesterResult is the one genuinely new entity: the
+// official, admin-published record for a student's semester (GPA,
+// percentage, per-course grades), which Batch Rank is computed from.
 enum ResultStatus {
   PASS
   FAIL
@@ -585,16 +571,14 @@ model SemesterCourseResult {
   @@map("semester_course_results")
 }
 
-/**
- * Certificate module — issued on demand once a student reaches 100%
- * lesson completion in a course (see lib/data/progress.ts's completion
- * calculation, reused rather than duplicated). Student name and course
- * name are snapshotted at issuance so a certificate's wording never
- * silently changes if the student later edits their profile or an admin
- * renames a course. verificationCode is the secret-ish token embedded in
- * the QR code / public verification URL — deliberately separate from the
- * human-readable certificateNumber printed on the certificate itself.
- */
+// Certificate module — issued on demand once a student reaches 100%
+// lesson completion in a course (see lib/data/progress.ts's completion
+// calculation, reused rather than duplicated). Student name and course
+// name are snapshotted at issuance so a certificate's wording never
+// silently changes if the student later edits their profile or an admin
+// renames a course. verificationCode is the secret-ish token embedded in
+// the QR code / public verification URL — deliberately separate from the
+// human-readable certificateNumber printed on the certificate itself.
 model Certificate {
   id                String    @id @default(cuid())
   studentId         String
@@ -617,13 +601,11 @@ model Certificate {
   @@map("certificates")
 }
 
-/**
- * Study materials — admin/faculty-provisioned reference material per
- * course. Files are URL references, same reasoning as Notification
- * attachments: no storage provider (S3/R2/Cloudinary) is configured in
- * this project, so a real upload flow is a deliberate future addition,
- * not something to fake with local disk storage.
- */
+// Study materials — admin/faculty-provisioned reference material per
+// course. Files are URL references, same reasoning as Notification
+// attachments: no storage provider (S3/R2/Cloudinary) is configured in
+// this project, so a real upload flow is a deliberate future addition,
+// not something to fake with local disk storage.
 enum MaterialType {
   DOCUMENT
   VIDEO
