@@ -5,16 +5,18 @@ import { UserPlus } from "lucide-react";
 import CreateUserForm from "@/components/admin/CreateUserForm";
 import UserManagementTable from "@/components/admin/UserManagementTable";
 import type { AdminUserRow } from "@/lib/data/admin-users";
-import type { BatchOption } from "@/types/attendance";
+import type { BatchOption, CourseOption } from "@/types/attendance";
 
 export default function UserManagementView({
   users,
   role,
   batches,
+  courses,
 }: {
   users: AdminUserRow[];
   role: "STUDENT" | "FACULTY";
   batches: BatchOption[];
+  courses: CourseOption[];
 }) {
   const [showCreate, setShowCreate] = useState(false);
 
@@ -29,7 +31,7 @@ export default function UserManagementView({
           Add {role === "STUDENT" ? "student" : "faculty"}
         </button>
       )}
-      {showCreate && <CreateUserForm role={role} batches={batches} />}
+      {showCreate && <CreateUserForm role={role} batches={batches} courses={courses} />}
       <UserManagementTable users={users} role={role} />
     </div>
   );

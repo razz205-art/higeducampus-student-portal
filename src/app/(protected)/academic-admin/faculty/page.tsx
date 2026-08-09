@@ -38,7 +38,7 @@ export default async function AdminFacultyPage({ searchParams }: { searchParams:
           Search
         </button>
       </form>
-      <UserManagementView users={faculty} role="FACULTY" batches={[]} />
+      <UserManagementView users={faculty} role="FACULTY" batches={[]} courses={[]} />
     </div>
   );
 }

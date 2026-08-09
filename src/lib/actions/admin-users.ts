@@ -22,6 +22,7 @@ const createUserSchema = z.object({
   password: z.string().min(10, "Password must be at least 10 characters."),
   role: z.enum(["STUDENT", "FACULTY"]),
   batchId: z.string().min(1).optional(),
+  courseIds: z.array(z.string().min(1)).max(20).optional(),
 });
 
 /**
@@ -44,7 +45,7 @@ export async function createUserAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { name, email, password, role, batchId } = parsed.data;
+  const { name, email, password, role, batchId, courseIds } = parsed.data;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -53,7 +54,7 @@ export async function createUserAction(
 
   const passwordHash = await hashPassword(password);
 
-  await prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       name,
       email,
@@ -63,6 +64,13 @@ export async function createUserAction(
       emailVerified: new Date(),
     },
   });
+
+  if (role === "STUDENT" && courseIds && courseIds.length > 0) {
+    await prisma.enrollment.createMany({
+      data: courseIds.map((courseId) => ({ studentId: user.id, courseId })),
+      skipDuplicates: true,
+    });
+  }
 
   revalidatePath(role === "STUDENT" ? "/academic-admin/students" : "/academic-admin/faculty");
 

@@ -6,21 +6,30 @@ import { createUserAction } from "@/lib/actions/admin-users";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
-import type { BatchOption } from "@/types/attendance";
+import type { BatchOption, CourseOption } from "@/types/attendance";
 
 export default function CreateUserForm({
   role,
   batches,
+  courses,
 }: {
   role: "STUDENT" | "FACULTY";
   batches: BatchOption[];
+  courses: CourseOption[];
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [batchId, setBatchId] = useState("");
+  const [courseIds, setCourseIds] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  function toggleCourse(courseId: string) {
+    setCourseIds((prev) =>
+      prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId]
+    );
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,6 +41,7 @@ export default function CreateUserForm({
         password,
         role,
         batchId: role === "STUDENT" ? batchId || undefined : undefined,
+        courseIds: role === "STUDENT" ? courseIds : undefined,
       });
       setResult(res);
       if (res.success) {
@@ -39,6 +49,7 @@ export default function CreateUserForm({
         setEmail("");
         setPassword("");
         setBatchId("");
+        setCourseIds([]);
       }
     });
   }
@@ -100,6 +111,34 @@ export default function CreateUserForm({
           </div>
         )}
       </div>
+
+      {role === "STUDENT" && (
+        <div>
+          <p className="mb-1.5 text-sm font-medium text-ink-800">
+            Courses{" "}
+            <span className="font-normal text-ink-900/40">(optional — can also add later)</span>
+          </p>
+          {courses.length === 0 ? (
+            <p className="rounded-sm border border-ink-900/15 bg-white px-3 py-2.5 text-sm text-ink-900/45">
+              No courses yet — create one under Manage &rarr; Courses first.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-2 rounded-sm border border-ink-900/15 bg-white p-3 sm:grid-cols-2">
+              {courses.map((c) => (
+                <label key={c.id} className="flex items-center gap-2 text-sm text-ink-900/80">
+                  <input
+                    type="checkbox"
+                    checked={courseIds.includes(c.id)}
+                    onChange={() => toggleCourse(c.id)}
+                    className="rounded border-ink-900/25"
+                  />
+                  {c.code} — {c.name}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <Button type="submit" isLoading={isPending} className="sm:w-auto sm:px-8">
         Create account

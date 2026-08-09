@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth";
 import { routes } from "@/config/site";
 import { getAllStudents } from "@/lib/data/admin-users";
-import { getBatches } from "@/lib/data/attendance";
+import { getBatches, getAllCourses } from "@/lib/data/attendance";
 import UserManagementView from "@/components/admin/UserManagementView";
 
 export const metadata = { title: "Manage Students" };
@@ -18,7 +18,11 @@ export default async function AdminStudentsPage({
     redirect(routes.unauthorized);
   }
 
-  const [students, batches] = await Promise.all([getAllStudents(searchParams.q), getBatches()]);
+  const [students, batches, courses] = await Promise.all([
+    getAllStudents(searchParams.q),
+    getBatches(),
+    getAllCourses(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -43,7 +47,7 @@ export default async function AdminStudentsPage({
           Search
         </button>
       </form>
-      <UserManagementView users={students} role="STUDENT" batches={batches} />
+      <UserManagementView users={students} role="STUDENT" batches={batches} courses={courses} />
     </div>
   );
 }
