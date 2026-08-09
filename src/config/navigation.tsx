@@ -13,6 +13,7 @@ import {
   Library,
   MessagesSquare,
   Users,
+  Layers,
   GraduationCap,
   ClipboardList,
   BarChart3,
@@ -107,6 +108,7 @@ export function getNavSections(role: Role): NavSection[] {
           title: "People",
           items: [
             { label: "Students", href: "/academic-admin/students", icon: Users },
+            { label: "Batches", href: "/academic-admin/batches", icon: Layers },
             { label: "Faculty", href: "/academic-admin/faculty", icon: GraduationCap },
           ],
         },

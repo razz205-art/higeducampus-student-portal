@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import {
   Users,
+  Layers,
   GraduationCap,
   BookOpen,
   CalendarCheck2,
@@ -23,8 +24,14 @@ const MANAGEMENT_LINKS = [
   {
     href: "/academic-admin/students",
     title: "Students",
-    description: "Accounts, batches, status",
+    description: "Accounts and status",
     icon: Users,
+  },
+  {
+    href: "/academic-admin/batches",
+    title: "Batches",
+    description: "Create student cohorts",
+    icon: Layers,
   },
   {
     href: "/academic-admin/faculty",
