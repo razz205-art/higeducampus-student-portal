@@ -135,6 +135,31 @@ export function getNavSections(role: Role): NavSection[] {
       return [
         { items: [overview, notifications] },
         {
+          title: "People",
+          items: [
+            { label: "Students", href: "/academic-admin/students", icon: Users },
+            { label: "Batches", href: "/academic-admin/batches", icon: Layers },
+            { label: "Faculty", href: "/academic-admin/faculty", icon: GraduationCap },
+          ],
+        },
+        {
+          title: "Academics",
+          items: [
+            { label: "Courses", href: "/academic-admin/courses", icon: BookOpen },
+            { label: "Attendance", href: "/academic-admin/attendance", icon: CalendarCheck2 },
+            { label: "Assignments", href: "/academic-admin/assignments", icon: ClipboardList },
+            { label: "Timetable", href: "/academic-admin/timetable", icon: CalendarDays },
+            { label: "Results", href: "/academic-admin/results", icon: BarChart3 },
+            { label: "Study Materials", href: "/academic-admin/materials", icon: Library },
+            { label: "Certificates", href: "/academic-admin/certificates", icon: Award },
+            { label: "Exam Countdown", href: "/academic-admin/exams", icon: Timer },
+          ],
+        },
+        {
+          title: "Insights",
+          items: [{ label: "Analytics", href: "/academic-admin/analytics", icon: BarChart3 }],
+        },
+        {
           title: "Platform",
           items: [
             { label: "User Management", icon: Users, comingSoon: true },
