@@ -69,7 +69,7 @@ export function getNavSections(role: Role): NavSection[] {
             { label: "Certificates", href: "/student/certificates", icon: BadgeCheck },
             { label: "Exam Countdown", href: "/student/exams", icon: Timer },
             { label: "View Course", href: "/student/materials", icon: Library },
-            { label: "Assignments", icon: ClipboardCheck, comingSoon: true },
+            { label: "Assignments", href: "/student/assignments", icon: ClipboardCheck },
           ],
         },
         {

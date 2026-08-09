@@ -13,8 +13,11 @@ import type { CourseOption } from "@/types/attendance";
 function AssignmentForm({ courses, onDone }: { courses: CourseOption[]; onDone: () => void }) {
   const [courseId, setCourseId] = useState(courses[0]?.id ?? "");
   const [title, setTitle] = useState("");
+  const [instructions, setInstructions] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [maxScore, setMaxScore] = useState("100");
+  const [attachmentUrl, setAttachmentUrl] = useState("");
+  const [attachmentType, setAttachmentType] = useState<"DOCUMENT" | "VIDEO" | "LINK">("DOCUMENT");
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -25,14 +28,19 @@ function AssignmentForm({ courses, onDone }: { courses: CourseOption[]; onDone: 
       const res = await createAssignmentAction({
         courseId,
         title,
+        instructions: instructions || undefined,
         dueDate,
         maxScore: Number(maxScore),
+        attachmentUrl: attachmentUrl || undefined,
+        attachmentType,
       });
       setResult(res);
       if (res.success) {
         setTitle("");
+        setInstructions("");
         setDueDate("");
         setMaxScore("100");
+        setAttachmentUrl("");
       }
     });
   }
@@ -95,6 +103,48 @@ function AssignmentForm({ courses, onDone }: { courses: CourseOption[]; onDone: 
           required
         />
       </div>
+
+      <div>
+        <label htmlFor="instructions" className="mb-1.5 block text-sm font-medium text-ink-800">
+          Instructions <span className="font-normal text-ink-900/40">(optional)</span>
+        </label>
+        <textarea
+          id="instructions"
+          value={instructions}
+          onChange={(e) => setInstructions(e.target.value)}
+          rows={4}
+          placeholder="What students need to do, how to submit, grading criteria…"
+          className="w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2.5 text-sm text-ink-900 placeholder:text-ink-900/30 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input
+          label="Reference file/link (optional)"
+          name="attachmentUrl"
+          type="url"
+          value={attachmentUrl}
+          onChange={(e) => setAttachmentUrl(e.target.value)}
+          placeholder="https://…"
+        />
+        <div>
+          <label htmlFor="attachmentType" className="mb-1.5 block text-sm font-medium text-ink-800">
+            Reference type
+          </label>
+          <select
+            id="attachmentType"
+            value={attachmentType}
+            onChange={(e) => setAttachmentType(e.target.value as "DOCUMENT" | "VIDEO" | "LINK")}
+            disabled={!attachmentUrl}
+            className="w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500 disabled:opacity-50"
+          >
+            <option value="DOCUMENT">Document</option>
+            <option value="VIDEO">Video</option>
+            <option value="LINK">Link</option>
+          </select>
+        </div>
+      </div>
+
       <Button type="submit" isLoading={isPending} className="sm:w-auto sm:px-8">
         Add assignment
       </Button>

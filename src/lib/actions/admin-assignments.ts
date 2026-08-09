@@ -17,8 +17,11 @@ function isAdmin(role: string | undefined): boolean {
 const assignmentSchema = z.object({
   courseId: z.string().min(1, "Choose a course."),
   title: z.string().trim().min(3, "Enter a title.").max(150),
+  instructions: z.string().trim().max(5000).optional(),
   dueDate: z.string().min(1, "Choose a due date."),
   maxScore: z.coerce.number().int().min(1).max(1000),
+  attachmentUrl: z.union([z.string().trim().url("Enter a valid URL."), z.literal("")]).optional(),
+  attachmentType: z.enum(["DOCUMENT", "VIDEO", "LINK"]).optional(),
 });
 
 export async function createAssignmentAction(
@@ -39,12 +42,16 @@ export async function createAssignmentAction(
     data: {
       courseId: parsed.data.courseId,
       title: parsed.data.title,
+      instructions: parsed.data.instructions || null,
       dueDate: new Date(parsed.data.dueDate),
       maxScore: parsed.data.maxScore,
+      attachmentUrl: parsed.data.attachmentUrl || null,
+      attachmentType: parsed.data.attachmentUrl ? parsed.data.attachmentType || "LINK" : null,
     },
   });
 
   revalidatePath("/academic-admin/assignments");
+  revalidatePath("/student/assignments");
   return { success: true, message: "Assignment created." };
 }
 
@@ -62,5 +69,6 @@ export async function deleteAssignmentAction(assignmentId: string): Promise<Acti
   }
 
   revalidatePath("/academic-admin/assignments");
+  revalidatePath("/student/assignments");
   return { success: true, message: "Assignment deleted." };
 }
