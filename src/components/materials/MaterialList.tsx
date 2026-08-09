@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Video, Link as LinkIcon, Library, ExternalLink } from "lucide-react";
+import {
+  FileText,
+  Video,
+  Link as LinkIcon,
+  Library,
+  ExternalLink,
+  ChevronDown,
+  FolderOpen,
+} from "lucide-react";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import { getEmbedInfo } from "@/lib/utils/embed";
 import type { MaterialItem } from "@/lib/data/materials";
@@ -84,8 +92,7 @@ function MaterialRow({
           )}
           <p className="mt-1 text-xs text-ink-900/40">
             {TYPE_LABEL[material.type]}
-            {material.fileSize ? ` · ${material.fileSize}` : ""} · {material.courseCode} ·{" "}
-            {material.createdAt}
+            {material.fileSize ? ` · ${material.fileSize}` : ""} · {material.createdAt}
           </p>
         </div>
       </button>
@@ -94,18 +101,77 @@ function MaterialRow({
   );
 }
 
-export default function MaterialList({ materials }: { materials: MaterialItem[] }) {
-  const [openId, setOpenId] = useState<string | null>(null);
+interface Group {
+  key: string;
+  name: string | null;
+  order: number;
+  items: MaterialItem[];
+}
 
-  const groups = new Map<string, { name: string | null; order: number; items: MaterialItem[] }>();
+function ChapterSection({
+  group,
+  isExpanded,
+  onToggleChapter,
+  openMaterialId,
+  onToggleMaterial,
+}: {
+  group: Group;
+  isExpanded: boolean;
+  onToggleChapter: () => void;
+  openMaterialId: string | null;
+  onToggleMaterial: (id: string) => void;
+}) {
+  return (
+    <div>
+      <button
+        onClick={onToggleChapter}
+        className="flex w-full items-center justify-between gap-3 bg-ink-900/[0.03] px-4 py-3 text-left transition-colors hover:bg-ink-900/[0.05]"
+      >
+        <span className="flex items-center gap-2.5">
+          <FolderOpen size={15} className="text-gold-600" aria-hidden="true" />
+          <span className="text-sm font-semibold text-ink-900">
+            {group.name ?? "Other Materials"}
+          </span>
+          <span className="text-xs text-ink-900/40">
+            {group.items.length} item{group.items.length === 1 ? "" : "s"}
+          </span>
+        </span>
+        <ChevronDown
+          size={16}
+          className={`shrink-0 text-ink-900/40 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
+      </button>
+      {isExpanded && (
+        <ul className="divide-ink-900/8 border-ink-900/8 divide-y border-t">
+          {group.items.map((m) => (
+            <MaterialRow
+              key={m.id}
+              material={m}
+              isOpen={openMaterialId === m.id}
+              onToggle={() => onToggleMaterial(m.id)}
+            />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export default function MaterialList({ materials }: { materials: MaterialItem[] }) {
+  const groupMap = new Map<string, Group>();
   for (const m of materials) {
     const key = m.moduleId ?? UNGROUPED_KEY;
-    if (!groups.has(key)) {
-      groups.set(key, { name: m.moduleName, order: m.moduleOrder ?? Infinity, items: [] });
+    if (!groupMap.has(key)) {
+      groupMap.set(key, { key, name: m.moduleName, order: m.moduleOrder ?? Infinity, items: [] });
     }
-    groups.get(key)!.items.push(m);
+    groupMap.get(key)!.items.push(m);
   }
-  const sortedGroups = Array.from(groups.values()).sort((a, b) => a.order - b.order);
+  const groups = Array.from(groupMap.values()).sort((a, b) => a.order - b.order);
+
+  // First chapter open by default so the page isn't empty-looking on load.
+  const [expandedKey, setExpandedKey] = useState<string | null>(groups[0]?.key ?? null);
+  const [openMaterialId, setOpenMaterialId] = useState<string | null>(null);
 
   return (
     <DashboardCard title="View Course" icon={Library} bodyClassName="p-0">
@@ -115,24 +181,18 @@ export default function MaterialList({ materials }: { materials: MaterialItem[] 
         </p>
       ) : (
         <div className="divide-ink-900/8 divide-y">
-          {sortedGroups.map((group, idx) => (
-            <div key={group.name ?? UNGROUPED_KEY + idx}>
-              {group.name && (
-                <p className="bg-ink-900/[0.02] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-ink-900/50">
-                  {group.name}
-                </p>
-              )}
-              <ul className="divide-ink-900/8 divide-y">
-                {group.items.map((m) => (
-                  <MaterialRow
-                    key={m.id}
-                    material={m}
-                    isOpen={openId === m.id}
-                    onToggle={() => setOpenId(openId === m.id ? null : m.id)}
-                  />
-                ))}
-              </ul>
-            </div>
+          {groups.map((group) => (
+            <ChapterSection
+              key={group.key}
+              group={group}
+              isExpanded={expandedKey === group.key}
+              onToggleChapter={() => {
+                setExpandedKey(expandedKey === group.key ? null : group.key);
+                setOpenMaterialId(null);
+              }}
+              openMaterialId={openMaterialId}
+              onToggleMaterial={(id) => setOpenMaterialId(openMaterialId === id ? null : id)}
+            />
           ))}
         </div>
       )}
