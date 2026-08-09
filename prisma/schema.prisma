@@ -298,6 +298,7 @@ model Module {
 
   course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   lessons Lesson[]
+  materials StudyMaterial[]
 
   @@index([courseId])
   @@map("modules")
@@ -615,16 +616,21 @@ enum MaterialType {
 model StudyMaterial {
   id           String       @id @default(cuid())
   courseId     String
+  moduleId     String? // "chapter" — reuses the existing Module model, not a new concept
   title        String
   description  String?
   type         MaterialType
   url          String
+  fileSize     String? // admin-entered display string (e.g. "2.4 MB") — materials are URL
+  // references, not real uploads, so there is no file to introspect for a real size
   uploadedById String
   createdAt    DateTime     @default(now())
 
-  course     Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  uploadedBy User   @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  course     Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  module     Module? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  uploadedBy User    @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
 
   @@index([courseId])
+  @@index([moduleId])
   @@map("study_materials")
 }

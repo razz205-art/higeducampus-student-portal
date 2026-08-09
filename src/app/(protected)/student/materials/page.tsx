@@ -4,7 +4,7 @@ import { routes } from "@/config/site";
 import { getStudentMaterials } from "@/lib/data/materials";
 import MaterialList from "@/components/materials/MaterialList";
 
-export const metadata = { title: "Study Materials" };
+export const metadata = { title: "View Course" };
 
 export default async function StudentMaterialsPage() {
   const session = await auth();
@@ -18,9 +18,9 @@ export default async function StudentMaterialsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-xl font-semibold text-ink-900">Study Materials</h1>
+        <h1 className="font-serif text-xl font-semibold text-ink-900">View Course</h1>
         <p className="mt-1 text-sm text-ink-900/50">
-          Documents, videos, and links shared for your enrolled courses.
+          Chapters, documents, videos, and links for your enrolled courses.
         </p>
       </div>
       <MaterialList materials={materials} />
