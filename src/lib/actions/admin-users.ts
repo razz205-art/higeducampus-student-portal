@@ -3,9 +3,11 @@
 import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import ExcelJS from "exceljs";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/security/password";
+import { parseCsv } from "@/lib/utils/csv";
 import { Role } from "@prisma/client";
 
 export interface ActionResult {
@@ -139,24 +141,7 @@ const bulkRowSchema = z.object({
   batchName: z.string().trim().min(1).optional(),
 });
 
-export async function bulkCreateStudentsAction(
-  rows: BulkStudentRow[]
-): Promise<{ success: boolean; message: string; results: BulkRowResult[] }> {
-  const session = await auth();
-  if (!session?.user) {
-    return { success: false, message: "You must be signed in.", results: [] };
-  }
-  if (!isAdmin(session.user.role)) {
-    return {
-      success: false,
-      message: "You don't have permission to create accounts.",
-      results: [],
-    };
-  }
-  if (rows.length === 0 || rows.length > 200) {
-    return { success: false, message: "Paste between 1 and 200 rows.", results: [] };
-  }
-
+async function processBulkStudentRows(rows: BulkStudentRow[]): Promise<BulkRowResult[]> {
   const batches = await prisma.batch.findMany({ select: { id: true, name: true } });
   const batchByName = new Map<string, string>(
     batches.map((b: { id: string; name: string }) => [b.name, b.id])
@@ -222,6 +207,126 @@ export async function bulkCreateStudentsAction(
       password: usedGenerated ? rawPassword : undefined,
     });
   }
+
+  return results;
+}
+
+export async function bulkCreateStudentsAction(
+  rows: BulkStudentRow[]
+): Promise<{ success: boolean; message: string; results: BulkRowResult[] }> {
+  const session = await auth();
+  if (!session?.user) {
+    return { success: false, message: "You must be signed in.", results: [] };
+  }
+  if (!isAdmin(session.user.role)) {
+    return {
+      success: false,
+      message: "You don't have permission to create accounts.",
+      results: [],
+    };
+  }
+  if (rows.length === 0 || rows.length > 200) {
+    return { success: false, message: "Paste between 1 and 200 rows.", results: [] };
+  }
+
+  const results = await processBulkStudentRows(rows);
+
+  revalidatePath("/academic-admin/students");
+
+  const createdCount = results.filter((r) => r.status === "created").length;
+  return {
+    success: true,
+    message: `${createdCount} of ${rows.length} account${rows.length === 1 ? "" : "s"} created.`,
+    results,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Bulk student creation from an uploaded CSV/Excel file. The file is parsed
+// in-memory during this request and discarded — never written to disk or
+// any storage provider, since none is configured in this project.
+// ---------------------------------------------------------------------------
+
+const HEADER_WORDS = new Set(["name", "full name", "student name"]);
+
+function rowsFromCells(cells: string[][]): BulkStudentRow[] {
+  const dataRows =
+    cells[0]?.[0] && HEADER_WORDS.has(cells[0][0].trim().toLowerCase()) ? cells.slice(1) : cells;
+
+  return dataRows
+    .filter((r) => r.some((c) => c.trim() !== ""))
+    .map((r) => ({
+      name: (r[0] ?? "").trim(),
+      email: (r[1] ?? "").trim(),
+      password: (r[2] ?? "").trim() || undefined,
+      batchName: (r[3] ?? "").trim() || undefined,
+    }));
+}
+
+export async function bulkCreateStudentsFromFileAction(
+  formData: FormData
+): Promise<{ success: boolean; message: string; results: BulkRowResult[] }> {
+  const session = await auth();
+  if (!session?.user) {
+    return { success: false, message: "You must be signed in.", results: [] };
+  }
+  if (!isAdmin(session.user.role)) {
+    return {
+      success: false,
+      message: "You don't have permission to create accounts.",
+      results: [],
+    };
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File)) {
+    return { success: false, message: "No file uploaded.", results: [] };
+  }
+
+  const name = file.name.toLowerCase();
+  let cells: string[][];
+
+  try {
+    if (name.endsWith(".csv")) {
+      const text = await file.text();
+      cells = parseCsv(text);
+    } else if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const workbook = new ExcelJS.Workbook();
+      // Bridging a @types/node Buffer generic mismatch against exceljs's
+      // older type declarations; the runtime value is a valid Buffer either way.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await workbook.xlsx.load(buffer as any);
+      const sheet = workbook.worksheets[0];
+      cells = [];
+      sheet?.eachRow((row) => {
+        const values = (row.values as (string | number | null)[]).slice(1);
+        cells.push(values.map((v) => (v === null || v === undefined ? "" : String(v))));
+      });
+    } else {
+      return {
+        success: false,
+        message: "Unsupported file type — upload a .csv or .xlsx file.",
+        results: [],
+      };
+    }
+  } catch {
+    return {
+      success: false,
+      message: "Couldn't read that file — make sure it's a valid CSV or Excel file.",
+      results: [],
+    };
+  }
+
+  const rows = rowsFromCells(cells);
+  if (rows.length === 0) {
+    return { success: false, message: "No student rows found in the file.", results: [] };
+  }
+  if (rows.length > 200) {
+    return { success: false, message: "Files are limited to 200 rows.", results: [] };
+  }
+
+  const results = await processBulkStudentRows(rows);
 
   revalidatePath("/academic-admin/students");
 

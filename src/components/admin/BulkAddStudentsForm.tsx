@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Users, Copy, Check } from "lucide-react";
-import { bulkCreateStudentsAction, type BulkRowResult } from "@/lib/actions/admin-users";
+import { useRef, useState, useTransition } from "react";
+import { Users, Copy, Check, Upload } from "lucide-react";
+import {
+  bulkCreateStudentsAction,
+  bulkCreateStudentsFromFileAction,
+  type BulkRowResult,
+} from "@/lib/actions/admin-users";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
 import Badge from "@/components/ui/Badge";
@@ -47,6 +51,8 @@ function CopyPasswordButton({ email, password }: { email: string; password: stri
 export default function BulkAddStudentsForm({ onDone }: { onDone: () => void }) {
   const [text, setText] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [fileName, setFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [outcome, setOutcome] = useState<{
     message: string;
     results: BulkRowResult[];
@@ -59,6 +65,20 @@ export default function BulkAddStudentsForm({ onDone }: { onDone: () => void }) 
     startTransition(async () => {
       const res = await bulkCreateStudentsAction(rows);
       setOutcome({ message: res.message, results: res.results });
+    });
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    setOutcome(null);
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await bulkCreateStudentsFromFileAction(formData);
+      setOutcome({ message: res.message, results: res.results });
+      if (fileInputRef.current) fileInputRef.current.value = "";
     });
   }
 
@@ -83,7 +103,9 @@ export default function BulkAddStudentsForm({ onDone }: { onDone: () => void }) 
         <p className="mt-1 font-mono">Full Name, Email, Password (optional), Batch (optional)</p>
         <p className="mt-2">
           Leave password blank to auto-generate one — shown after you submit, so you can copy and
-          share it. Batch must already exist (created under Batches) and match its name exactly.
+          share it. Batch must already exist (created under Batches) and match its name exactly. For
+          file uploads, an optional header row (e.g. &ldquo;Name, Email, …&rdquo;) is detected
+          automatically and skipped.
         </p>
         <pre className="mt-2 whitespace-pre-wrap rounded-sm bg-ink-900/[0.03] p-2 font-mono text-[11px] text-ink-900/50">
           {EXAMPLE}
@@ -107,6 +129,32 @@ export default function BulkAddStudentsForm({ onDone }: { onDone: () => void }) 
           Add {parseRows(text).length || ""} student{parseRows(text).length === 1 ? "" : "s"}
         </Button>
       </form>
+
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-ink-900/10" />
+        <span className="text-xs font-medium text-ink-900/40">or upload a file</span>
+        <div className="h-px flex-1 bg-ink-900/10" />
+      </div>
+
+      <div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.xlsx,.xls"
+          onChange={handleFileChange}
+          className="hidden"
+          id="bulk-file-input"
+        />
+        <label
+          htmlFor="bulk-file-input"
+          className="flex cursor-pointer items-center justify-center gap-2 rounded-sm border-2 border-dashed border-ink-900/15 bg-white px-4 py-6 text-sm text-ink-900/60 transition-colors hover:border-gold-500/40 hover:bg-gold-500/5"
+        >
+          <Upload size={16} aria-hidden="true" />
+          {fileName
+            ? `Uploaded: ${fileName}`
+            : "Choose a .csv or .xlsx file (same column order as above)"}
+        </label>
+      </div>
 
       {outcome && (
         <div className="space-y-3">
