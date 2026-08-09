@@ -56,3 +56,50 @@ export async function sendPasswordChangedNotice(to: string) {
     html,
   });
 }
+
+/**
+ * Sends a new account's login credentials, optionally with an admin's
+ * custom message. Callers must catch/handle failures themselves — this
+ * throws whenever RESEND_API_KEY isn't configured (Resend is optional
+ * in this project), and account creation should never fail just because
+ * the welcome email couldn't be sent.
+ */
+export async function sendWelcomeCredentialsEmail(
+  to: string,
+  name: string,
+  loginEmail: string,
+  password: string,
+  loginUrl: string,
+  customMessage?: string
+) {
+  const html = `
+  <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #12203D;">
+    <h2 style="margin: 0 0 16px; font-size: 20px;">Welcome, ${name}</h2>
+    <p style="margin: 0 0 16px; line-height: 1.5; color: #33415C;">
+      An account has been created for you on HiG EDUCAMPUS. Here are your login details:
+    </p>
+    <div style="background: #FAF9F6; border: 1px solid #12203D1A; border-radius: 4px; padding: 16px 20px; margin: 0 0 16px;">
+      <p style="margin: 0 0 8px; font-size: 14px; color: #33415C;"><strong>Email:</strong> ${loginEmail}</p>
+      <p style="margin: 0; font-size: 14px; color: #33415C;"><strong>Password:</strong> ${password}</p>
+    </div>
+    ${
+      customMessage
+        ? `<p style="margin: 0 0 16px; line-height: 1.5; color: #33415C; white-space: pre-wrap;">${customMessage}</p>`
+        : ""
+    }
+    <a href="${loginUrl}"
+       style="display: inline-block; background: #12203D; color: #FAF9F6; text-decoration: none; padding: 12px 20px; border-radius: 4px; font-weight: 600;">
+      Sign in
+    </a>
+    <p style="margin: 24px 0 0; font-size: 13px; color: #6B7280; line-height: 1.5;">
+      For your security, please sign in and change this password as soon as possible.
+    </p>
+  </div>`;
+
+  return getResendClient().emails.send({
+    from: FROM,
+    to,
+    subject: "Your HiG EDUCAMPUS account",
+    html,
+  });
+}

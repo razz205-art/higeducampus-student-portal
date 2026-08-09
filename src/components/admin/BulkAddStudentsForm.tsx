@@ -53,6 +53,8 @@ export default function BulkAddStudentsForm({ onDone }: { onDone: () => void }) 
   const [isPending, startTransition] = useTransition();
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [sendEmail, setSendEmail] = useState(true);
+  const [customMessage, setCustomMessage] = useState("");
   const [outcome, setOutcome] = useState<{
     message: string;
     results: BulkRowResult[];
@@ -63,7 +65,10 @@ export default function BulkAddStudentsForm({ onDone }: { onDone: () => void }) 
     const rows = parseRows(text);
     if (rows.length === 0) return;
     startTransition(async () => {
-      const res = await bulkCreateStudentsAction(rows);
+      const res = await bulkCreateStudentsAction(rows, {
+        sendEmail,
+        customMessage: customMessage || undefined,
+      });
       setOutcome({ message: res.message, results: res.results });
     });
   }
@@ -76,6 +81,8 @@ export default function BulkAddStudentsForm({ onDone }: { onDone: () => void }) 
     startTransition(async () => {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("sendEmail", String(sendEmail));
+      if (customMessage) formData.append("customMessage", customMessage);
       const res = await bulkCreateStudentsFromFileAction(formData);
       setOutcome({ message: res.message, results: res.results });
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -110,6 +117,27 @@ export default function BulkAddStudentsForm({ onDone }: { onDone: () => void }) 
         <pre className="mt-2 whitespace-pre-wrap rounded-sm bg-ink-900/[0.03] p-2 font-mono text-[11px] text-ink-900/50">
           {EXAMPLE}
         </pre>
+      </div>
+
+      <div className="space-y-2.5 rounded-sm border border-ink-900/10 bg-white p-3">
+        <label className="flex items-center gap-2 text-sm text-ink-900/80">
+          <input
+            type="checkbox"
+            checked={sendEmail}
+            onChange={(e) => setSendEmail(e.target.checked)}
+            className="rounded border-ink-900/25"
+          />
+          Email login details to every account created below
+        </label>
+        {sendEmail && (
+          <textarea
+            value={customMessage}
+            onChange={(e) => setCustomMessage(e.target.value)}
+            placeholder="Optional custom message included in every email…"
+            rows={2}
+            className="w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2 text-sm placeholder:text-ink-900/30"
+          />
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
@@ -181,7 +209,20 @@ export default function BulkAddStudentsForm({ onDone }: { onDone: () => void }) 
                     </td>
                     <td className="px-3 py-2 text-ink-900/60">
                       {r.password ? (
-                        <CopyPasswordButton email={r.email} password={r.password} />
+                        <div className="flex flex-col gap-0.5">
+                          <CopyPasswordButton email={r.email} password={r.password} />
+                          {r.status === "created" && (
+                            <span
+                              className={r.emailSent ? "text-signal-success" : "text-ink-900/40"}
+                            >
+                              {r.emailSent ? "Emailed" : "Not emailed"}
+                            </span>
+                          )}
+                        </div>
+                      ) : r.status === "created" ? (
+                        <span className={r.emailSent ? "text-signal-success" : "text-ink-900/40"}>
+                          {r.emailSent ? "Emailed" : "Not emailed"}
+                        </span>
                       ) : (
                         r.message
                       )}

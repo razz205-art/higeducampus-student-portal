@@ -7,6 +7,7 @@ import ExcelJS from "exceljs";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/security/password";
+import { sendWelcomeCredentialsEmail } from "@/lib/email/resend";
 import { parseCsv } from "@/lib/utils/csv";
 import { Role } from "@prisma/client";
 
@@ -26,6 +27,8 @@ const createUserSchema = z.object({
   role: z.enum(["STUDENT", "FACULTY"]),
   batchId: z.string().min(1).optional(),
   courseIds: z.array(z.string().min(1)).max(20).optional(),
+  sendEmail: z.boolean().optional(),
+  customMessage: z.string().trim().max(2000).optional(),
 });
 
 /**
@@ -48,7 +51,7 @@ export async function createUserAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { name, email, password, role, batchId, courseIds } = parsed.data;
+  const { name, email, password, role, batchId, courseIds, sendEmail, customMessage } = parsed.data;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -77,9 +80,20 @@ export async function createUserAction(
 
   revalidatePath(role === "STUDENT" ? "/academic-admin/students" : "/academic-admin/faculty");
 
+  let emailNote = "";
+  if (sendEmail) {
+    try {
+      const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/login`;
+      await sendWelcomeCredentialsEmail(email, name, email, password, loginUrl, customMessage);
+      emailNote = " Login details emailed.";
+    } catch {
+      emailNote = " (Email not sent — Resend isn't configured yet. Share the password manually.)";
+    }
+  }
+
   return {
     success: true,
-    message: `${role === "STUDENT" ? "Student" : "Faculty"} account created.`,
+    message: `${role === "STUDENT" ? "Student" : "Faculty"} account created.${emailNote}`,
   };
 }
 
@@ -128,6 +142,7 @@ export interface BulkRowResult {
   status: "created" | "skipped";
   message: string;
   password?: string; // only present when auto-generated
+  emailSent?: boolean;
 }
 
 function generateTempPassword(): string {
@@ -141,7 +156,10 @@ const bulkRowSchema = z.object({
   batchName: z.string().trim().min(1).optional(),
 });
 
-async function processBulkStudentRows(rows: BulkStudentRow[]): Promise<BulkRowResult[]> {
+async function processBulkStudentRows(
+  rows: BulkStudentRow[],
+  emailOptions?: { sendEmail?: boolean; customMessage?: string }
+): Promise<BulkRowResult[]> {
   const batches = await prisma.batch.findMany({ select: { id: true, name: true } });
   const batchByName = new Map<string, string>(
     batches.map((b: { id: string; name: string }) => [b.name, b.id])
@@ -205,14 +223,33 @@ async function processBulkStudentRows(rows: BulkStudentRow[]): Promise<BulkRowRe
       status: "created",
       message: "Created.",
       password: usedGenerated ? rawPassword : undefined,
+      emailSent: false,
     });
+
+    if (emailOptions?.sendEmail) {
+      try {
+        const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/login`;
+        await sendWelcomeCredentialsEmail(
+          email,
+          name,
+          email,
+          rawPassword,
+          loginUrl,
+          emailOptions.customMessage
+        );
+        results[results.length - 1]!.emailSent = true;
+      } catch {
+        // Best-effort — account creation already succeeded either way.
+      }
+    }
   }
 
   return results;
 }
 
 export async function bulkCreateStudentsAction(
-  rows: BulkStudentRow[]
+  rows: BulkStudentRow[],
+  emailOptions?: { sendEmail?: boolean; customMessage?: string }
 ): Promise<{ success: boolean; message: string; results: BulkRowResult[] }> {
   const session = await auth();
   if (!session?.user) {
@@ -229,7 +266,7 @@ export async function bulkCreateStudentsAction(
     return { success: false, message: "Paste between 1 and 200 rows.", results: [] };
   }
 
-  const results = await processBulkStudentRows(rows);
+  const results = await processBulkStudentRows(rows, emailOptions);
 
   revalidatePath("/academic-admin/students");
 
@@ -326,7 +363,10 @@ export async function bulkCreateStudentsFromFileAction(
     return { success: false, message: "Files are limited to 200 rows.", results: [] };
   }
 
-  const results = await processBulkStudentRows(rows);
+  const results = await processBulkStudentRows(rows, {
+    sendEmail: formData.get("sendEmail") === "true",
+    customMessage: (formData.get("customMessage") as string) || undefined,
+  });
 
   revalidatePath("/academic-admin/students");
 

@@ -22,6 +22,8 @@ export default function CreateUserForm({
   const [password, setPassword] = useState("");
   const [batchId, setBatchId] = useState("");
   const [courseIds, setCourseIds] = useState<string[]>([]);
+  const [sendEmail, setSendEmail] = useState(true);
+  const [customMessage, setCustomMessage] = useState("");
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -42,6 +44,8 @@ export default function CreateUserForm({
         role,
         batchId: role === "STUDENT" ? batchId || undefined : undefined,
         courseIds: role === "STUDENT" ? courseIds : undefined,
+        sendEmail,
+        customMessage: customMessage || undefined,
       });
       setResult(res);
       if (res.success) {
@@ -50,6 +54,7 @@ export default function CreateUserForm({
         setPassword("");
         setBatchId("");
         setCourseIds([]);
+        setCustomMessage("");
       }
     });
   }
@@ -139,6 +144,27 @@ export default function CreateUserForm({
           )}
         </div>
       )}
+
+      <div className="space-y-2.5 rounded-sm border border-ink-900/10 bg-white p-3">
+        <label className="flex items-center gap-2 text-sm text-ink-900/80">
+          <input
+            type="checkbox"
+            checked={sendEmail}
+            onChange={(e) => setSendEmail(e.target.checked)}
+            className="rounded border-ink-900/25"
+          />
+          Email login details to this account
+        </label>
+        {sendEmail && (
+          <textarea
+            value={customMessage}
+            onChange={(e) => setCustomMessage(e.target.value)}
+            placeholder="Optional custom message to include in the email…"
+            rows={3}
+            className="w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2 text-sm placeholder:text-ink-900/30"
+          />
+        )}
+      </div>
 
       <Button type="submit" isLoading={isPending} className="sm:w-auto sm:px-8">
         Create account
