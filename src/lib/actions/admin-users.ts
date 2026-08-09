@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/lib/auth/auth";
@@ -103,4 +104,131 @@ export async function toggleUserActiveAction(
   revalidatePath("/academic-admin/faculty");
 
   return { success: true, message: isActive ? "Account reactivated." : "Account disabled." };
+}
+
+// ---------------------------------------------------------------------------
+// Bulk student creation — one row per line, pasted in. Password is optional
+// per row: if left blank, a random temporary password is generated and
+// returned so the admin can share it, rather than requiring 50 typed
+// passwords by hand.
+// ---------------------------------------------------------------------------
+
+export interface BulkStudentRow {
+  name: string;
+  email: string;
+  password?: string;
+  batchName?: string;
+}
+
+export interface BulkRowResult {
+  row: number;
+  email: string;
+  status: "created" | "skipped";
+  message: string;
+  password?: string; // only present when auto-generated
+}
+
+function generateTempPassword(): string {
+  return randomBytes(9).toString("base64").replace(/[+/=]/g, "").slice(0, 12);
+}
+
+const bulkRowSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  email: z.string().trim().toLowerCase().email(),
+  password: z.string().trim().min(10).optional(),
+  batchName: z.string().trim().min(1).optional(),
+});
+
+export async function bulkCreateStudentsAction(
+  rows: BulkStudentRow[]
+): Promise<{ success: boolean; message: string; results: BulkRowResult[] }> {
+  const session = await auth();
+  if (!session?.user) {
+    return { success: false, message: "You must be signed in.", results: [] };
+  }
+  if (!isAdmin(session.user.role)) {
+    return {
+      success: false,
+      message: "You don't have permission to create accounts.",
+      results: [],
+    };
+  }
+  if (rows.length === 0 || rows.length > 200) {
+    return { success: false, message: "Paste between 1 and 200 rows.", results: [] };
+  }
+
+  const batches = await prisma.batch.findMany({ select: { id: true, name: true } });
+  const batchByName = new Map<string, string>(
+    batches.map((b: { id: string; name: string }) => [b.name, b.id])
+  );
+
+  const results: BulkRowResult[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const rowNum = i + 1;
+    const parsed = bulkRowSchema.safeParse(rows[i]);
+    if (!parsed.success) {
+      results.push({
+        row: rowNum,
+        email: rows[i]?.email ?? "—",
+        status: "skipped",
+        message: parsed.error.issues[0]?.message ?? "Invalid row.",
+      });
+      continue;
+    }
+    const { name, email, batchName } = parsed.data;
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      results.push({ row: rowNum, email, status: "skipped", message: "Email already exists." });
+      continue;
+    }
+
+    let batchId: string | null = null;
+    if (batchName) {
+      const found = batchByName.get(batchName);
+      if (!found) {
+        results.push({
+          row: rowNum,
+          email,
+          status: "skipped",
+          message: `Batch "${batchName}" not found.`,
+        });
+        continue;
+      }
+      batchId = found;
+    }
+
+    const usedGenerated = !parsed.data.password;
+    const rawPassword = parsed.data.password ?? generateTempPassword();
+    const passwordHash = await hashPassword(rawPassword);
+
+    await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash,
+        role: "STUDENT" as Role,
+        batchId,
+        emailVerified: new Date(),
+      },
+    });
+
+    results.push({
+      row: rowNum,
+      email,
+      status: "created",
+      message: "Created.",
+      password: usedGenerated ? rawPassword : undefined,
+    });
+  }
+
+  revalidatePath("/academic-admin/students");
+
+  const createdCount = results.filter((r) => r.status === "created").length;
+  return {
+    success: true,
+    message: `${createdCount} of ${rows.length} account${rows.length === 1 ? "" : "s"} created.`,
+    results,
+  };
 }
