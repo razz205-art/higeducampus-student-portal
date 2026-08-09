@@ -1,140 +1,194 @@
-import type { StudentDashboardData } from "@/types/student-dashboard";
+import { prisma } from "@/lib/db/prisma";
+import { getStudentCourses, getStudentAttendanceSummary } from "@/lib/data/attendance";
+import { getOverallProgress, getSubjectProgress, getAssignmentsSummary } from "@/lib/data/progress";
+import { getActiveExams } from "@/lib/data/exams";
+import { getStudentTimetableSlots, projectWeek } from "@/lib/data/timetable";
+import { getRecentSummaries } from "@/lib/data/notifications";
+import { getResultsPerformanceTrend } from "@/lib/data/results";
+import { formatDayLabel, getWeekStartUTC, parseISODate, todayUTC } from "@/lib/utils/date";
+import type {
+  StudentDashboardData,
+  AssignmentStatus,
+  ActivityItem,
+} from "@/types/student-dashboard";
+
+function formatExamTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function formatExamDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
 
 /**
- * MOCK DATA — no Course, Attendance, Assignment, Exam, or Notification
- * modules exist in the schema yet (see prisma/schema.prisma). This function
- * is the single seam between the UI and real data: once those modules
- * ship, replace the body with Prisma queries scoped to `userId` and every
- * card on the dashboard keeps working unchanged, since they only consume
- * the `StudentDashboardData` shape below.
+ * Real Prisma queries, reusing functions already built across the
+ * Attendance/Progress/Timetable/Exams/Notifications/Results modules —
+ * this used to be hardcoded mock data (see git history), a deliberate
+ * placeholder from the very first dashboard build before those modules
+ * existed. They've all since shipped; this is the promised swap-over.
  */
-export async function getStudentDashboardData(_userId: string): Promise<StudentDashboardData> {
+export async function getStudentDashboardData(userId: string): Promise<StudentDashboardData> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      registrationNumber: true,
+      batch: { select: { name: true, startYear: true, endYear: true } },
+    },
+  });
+
+  const [
+    attendanceSummary,
+    overallProgress,
+    subjectProgress,
+    assignmentsSummary,
+    activeExams,
+    timetableSlots,
+    notifications,
+    performanceTrend,
+    courses,
+  ] = await Promise.all([
+    getStudentAttendanceSummary(userId),
+    getOverallProgress(userId),
+    getSubjectProgress(userId),
+    getAssignmentsSummary(userId),
+    getActiveExams(),
+    getStudentTimetableSlots(userId),
+    getRecentSummaries(userId, 5),
+    getResultsPerformanceTrend(userId, 6),
+    getStudentCourses(userId),
+  ]);
+
+  // Upcoming classes: this week's remaining slots, soonest first.
+  const week = projectWeek(timetableSlots, getWeekStartUTC(todayUTC()));
+  const upcomingClasses = week
+    .flatMap((day) => day.classes)
+    .filter((c) => c.status !== "completed")
+    .slice(0, 4)
+    .map((c) => ({
+      id: c.id,
+      courseName: `${c.courseCode} — ${c.courseName}`,
+      instructor: c.facultyName,
+      day: formatDayLabel(parseISODate(c.date)),
+      time: `${c.startTime} – ${c.endTime}`,
+      location: c.location ?? (c.meetingLink ? "Online" : "TBA"),
+    }));
+
+  const upcomingExams = activeExams.slice(0, 4).map((e) => ({
+    id: e.id,
+    courseName: e.title,
+    examType: "Exam",
+    date: formatExamDate(e.examDate),
+    time: formatExamTime(e.examDate),
+  }));
+
+  // Pending assignments: assignments in enrolled courses the student hasn't submitted yet.
+  const courseIds = courses.map((c) => c.id);
+  const today = todayUTC();
+  const allAssignments =
+    courseIds.length > 0
+      ? await prisma.assignment.findMany({
+          where: { courseId: { in: courseIds } },
+          include: {
+            course: { select: { code: true, name: true } },
+            submissions: { where: { studentId: userId }, select: { id: true } },
+          },
+          orderBy: { dueDate: "asc" },
+        })
+      : [];
+  const pendingAssignments = allAssignments
+    .filter((a: { submissions: { id: string }[] }) => a.submissions.length === 0)
+    .slice(0, 5)
+    .map(
+      (a: { id: string; title: string; dueDate: Date; course: { code: string; name: string } }) => {
+        const daysUntil = Math.round((a.dueDate.getTime() - today.getTime()) / 86_400_000);
+        const status: AssignmentStatus =
+          daysUntil < 0 ? "overdue" : daysUntil <= 3 ? "due-soon" : "upcoming";
+        return {
+          id: a.id,
+          title: a.title,
+          courseName: `${a.course.code} — ${a.course.name}`,
+          dueDate: formatExamDate(a.dueDate.toISOString()),
+          status,
+        };
+      }
+    );
+
+  // Recent activity: the student's own last few lesson completions, quiz
+  // attempts, and assignment submissions, merged and sorted by recency.
+  const [completions, quizzes, submissions] = await Promise.all([
+    prisma.lessonCompletion.findMany({
+      where: { studentId: userId },
+      include: { lesson: { select: { title: true } } },
+      orderBy: { completedAt: "desc" },
+      take: 5,
+    }),
+    prisma.quizAttempt.findMany({
+      where: { studentId: userId },
+      include: { quiz: { select: { title: true } } },
+      orderBy: { takenAt: "desc" },
+      take: 5,
+    }),
+    prisma.assignmentSubmission.findMany({
+      where: { studentId: userId },
+      include: { assignment: { select: { title: true } } },
+      orderBy: { submittedAt: "desc" },
+      take: 5,
+    }),
+  ]);
+  const recentActivities: ActivityItem[] = [
+    ...completions.map((c: { id: string; completedAt: Date; lesson: { title: string } }) => ({
+      id: `lesson-${c.id}`,
+      description: `Completed lesson: ${c.lesson.title}`,
+      timestamp: c.completedAt.toISOString(),
+    })),
+    ...quizzes.map((q: { id: string; takenAt: Date; quiz: { title: string } }) => ({
+      id: `quiz-${q.id}`,
+      description: `Took quiz: ${q.quiz.title}`,
+      timestamp: q.takenAt.toISOString(),
+    })),
+    ...submissions.map((s: { id: string; submittedAt: Date; assignment: { title: string } }) => ({
+      id: `assignment-${s.id}`,
+      description: `Submitted assignment: ${s.assignment.title}`,
+      timestamp: s.submittedAt.toISOString(),
+    })),
+  ]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 5)
+    .map((a) => ({
+      ...a,
+      timestamp: new Date(a.timestamp).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      }),
+    }));
+
   return {
     profile: {
-      studentId: "STU-2026-0148",
-      program: "B.Sc. Computer Science",
-      batch: "2024 – 2028",
+      studentId: user?.registrationNumber ?? "—",
+      program: "Student",
+      batch: user?.batch ? `${user.batch.startYear} – ${user.batch.endYear}` : "—",
     },
     stats: {
-      attendancePercent: 92,
-      overallProgressPercent: 68,
-      pendingAssignmentsCount: 3,
-      upcomingExamsCount: 2,
+      attendancePercent: attendanceSummary.percentage,
+      overallProgressPercent: overallProgress.percentage,
+      pendingAssignmentsCount: Math.max(assignmentsSummary.total - assignmentsSummary.completed, 0),
+      upcomingExamsCount: activeExams.length,
     },
-    courseProgress: [
-      {
-        id: "c1",
-        courseCode: "CS301",
-        courseName: "Data Structures & Algorithms",
-        progressPercent: 78,
-      },
-      { id: "c2", courseCode: "CS315", courseName: "Database Systems", progressPercent: 64 },
-      { id: "c3", courseCode: "CS322", courseName: "Operating Systems", progressPercent: 55 },
-      { id: "c4", courseCode: "MA210", courseName: "Discrete Mathematics", progressPercent: 81 },
-    ],
-    performance: [
-      { label: "Quiz 1", score: 74 },
-      { label: "Quiz 2", score: 81 },
-      { label: "Midterm", score: 77 },
-      { label: "Quiz 3", score: 85 },
-      { label: "Quiz 4", score: 88 },
-      { label: "Project", score: 91 },
-    ],
-    upcomingClasses: [
-      {
-        id: "cls1",
-        courseName: "Data Structures & Algorithms",
-        instructor: "Dr. Adeyemi Okafor",
-        day: "Monday",
-        time: "9:00 AM – 10:30 AM",
-        location: "Room 204, Engineering Block",
-      },
-      {
-        id: "cls2",
-        courseName: "Database Systems",
-        instructor: "Prof. Lena Marsh",
-        day: "Monday",
-        time: "11:00 AM – 12:30 PM",
-        location: "Room 118, CS Building",
-      },
-      {
-        id: "cls3",
-        courseName: "Operating Systems",
-        instructor: "Dr. Raj Patel",
-        day: "Tuesday",
-        time: "2:00 PM – 3:30 PM",
-        location: "Lab 3, CS Building",
-      },
-    ],
-    upcomingExams: [
-      {
-        id: "ex1",
-        courseName: "Database Systems",
-        examType: "Midterm Exam",
-        date: "Aug 18, 2026",
-        time: "10:00 AM",
-      },
-      {
-        id: "ex2",
-        courseName: "Discrete Mathematics",
-        examType: "Final Exam",
-        date: "Aug 27, 2026",
-        time: "1:00 PM",
-      },
-    ],
-    pendingAssignments: [
-      {
-        id: "a1",
-        title: "B-Tree Implementation",
-        courseName: "Data Structures & Algorithms",
-        dueDate: "Aug 10, 2026",
-        status: "due-soon",
-      },
-      {
-        id: "a2",
-        title: "Normalization Case Study",
-        courseName: "Database Systems",
-        dueDate: "Aug 9, 2026",
-        status: "overdue",
-      },
-      {
-        id: "a3",
-        title: "Process Scheduling Report",
-        courseName: "Operating Systems",
-        dueDate: "Aug 15, 2026",
-        status: "upcoming",
-      },
-    ],
-    notifications: [
-      {
-        id: "n1",
-        title: "Grade posted for Quiz 4 — Data Structures & Algorithms",
-        timestamp: "2 hours ago",
-      },
-      { id: "n2", title: "Room change: Database Systems now in Room 118", timestamp: "Yesterday" },
-      { id: "n3", title: "Library books due for renewal", timestamp: "2 days ago" },
-    ],
-    recentActivities: [
-      {
-        id: "act1",
-        description: "Submitted \u201cSorting Algorithms Lab\u201d",
-        timestamp: "Today, 9:12 AM",
-      },
-      {
-        id: "act2",
-        description: "Viewed feedback on Midterm — Database Systems",
-        timestamp: "Yesterday, 4:40 PM",
-      },
-      {
-        id: "act3",
-        description: "Joined study group for Operating Systems",
-        timestamp: "2 days ago",
-      },
-      {
-        id: "act4",
-        description: "Downloaded lecture notes — Discrete Mathematics",
-        timestamp: "3 days ago",
-      },
-    ],
+    courseProgress: subjectProgress,
+    performance: performanceTrend.map((p) => ({ label: p.label, score: p.percentage })),
+    upcomingClasses,
+    upcomingExams,
+    pendingAssignments,
+    notifications: notifications.map((n) => ({
+      id: n.id,
+      title: n.title,
+      timestamp: new Date(n.createdAt).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      }),
+    })),
+    recentActivities,
   };
 }
