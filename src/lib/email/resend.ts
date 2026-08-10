@@ -74,9 +74,16 @@ export async function sendWelcomeCredentialsEmail(
 ) {
   const html = `
   <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #12203D;">
-    <h2 style="margin: 0 0 16px; font-size: 20px;">Welcome, ${name}</h2>
+    <h2 style="margin: 0 0 16px; font-size: 22px;">🎓 Welcome to HiG EDUCAMPUS!</h2>
+    <p style="margin: 0 0 12px; line-height: 1.5; color: #33415C;">
+      Dear ${name},
+    </p>
+    <p style="margin: 0 0 20px; line-height: 1.5; color: #33415C;">
+      Welcome to the HiG EDUCAMPUS Learning Management System (LMS)! 🎉 We&rsquo;re excited to
+      have you join us and begin your learning journey with HiG EDUCAMPUS.
+    </p>
     <p style="margin: 0 0 16px; line-height: 1.5; color: #33415C;">
-      An account has been created for you on HiG EDUCAMPUS. Here are your login details:
+      Here are your login details:
     </p>
     <div style="background: #FAF9F6; border: 1px solid #12203D1A; border-radius: 4px; padding: 16px 20px; margin: 0 0 16px;">
       <p style="margin: 0 0 8px; font-size: 14px; color: #33415C;"><strong>Email:</strong> ${loginEmail}</p>
@@ -99,7 +106,7 @@ export async function sendWelcomeCredentialsEmail(
   return getResendClient().emails.send({
     from: FROM,
     to,
-    subject: "Your HiG EDUCAMPUS account",
+    subject: "🎓 Welcome to HiG EDUCAMPUS!",
     html,
   });
 }
