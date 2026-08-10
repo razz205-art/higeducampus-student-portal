@@ -23,7 +23,7 @@ export default async function StudentCertificatesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-xl font-semibold text-ink-900">Certificates</h1>
+        <h1 className="font-serif text-xl font-extrabold text-ink-900">Certificates</h1>
         <p className="mt-1 text-sm text-ink-900/50">
           Download a certificate for any course you&rsquo;ve fully completed. Every certificate
           includes a QR code anyone can scan to verify it&rsquo;s genuine.

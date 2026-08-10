@@ -57,7 +57,7 @@ export default async function NotificationsPage({
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-serif text-xl font-semibold text-ink-900">Notifications</h1>
+          <h1 className="font-serif text-xl font-extrabold text-ink-900">Notifications</h1>
           <p className="mt-1 text-sm text-ink-900/50">
             Announcements, exam updates, schedule changes, and more — all in one place.
           </p>

@@ -32,7 +32,7 @@ export default function ProfileSummaryCard({
         )}
 
         <div className="min-w-0 flex-1">
-          <h1 className="truncate font-serif text-xl font-semibold text-ink-900 sm:text-2xl">
+          <h1 className="truncate font-serif text-xl font-extrabold text-ink-900 sm:text-2xl">
             {name ?? "Student"}
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-ink-900/60">

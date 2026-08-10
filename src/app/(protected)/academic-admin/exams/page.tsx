@@ -19,7 +19,9 @@ export default async function AdminExamsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-xl font-semibold text-ink-900">Exam Countdown Management</h1>
+        <h1 className="font-serif text-xl font-extrabold text-ink-900">
+          Exam Countdown Management
+        </h1>
         <p className="mt-1 text-sm text-ink-900/50">
           Add exams, change their dates, and archive ones that have passed. Students see live
           countdowns for every active exam at /student/exams.

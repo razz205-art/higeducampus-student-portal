@@ -50,7 +50,7 @@ export default async function StudentResultsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-serif text-xl font-semibold text-ink-900">Results</h1>
+          <h1 className="font-serif text-xl font-extrabold text-ink-900">Results</h1>
           <p className="mt-1 text-sm text-ink-900/50">
             Internal assessments, mock tests, assignments, and your official semester record.
           </p>

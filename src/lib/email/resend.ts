@@ -10,14 +10,14 @@ function getResendClient(): Resend {
   return new Resend(process.env.RESEND_API_KEY);
 }
 
-const FROM = process.env.EMAIL_FROM ?? "LMS Portal <no-reply@lms-portal.edu>";
+const FROM = process.env.EMAIL_FROM ?? "HiG EDUCAMPUS <no-reply@higeducampus.in>";
 
 export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   const html = `
   <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #12203D;">
     <h2 style="margin: 0 0 16px; font-size: 20px;">Reset your password</h2>
     <p style="margin: 0 0 16px; line-height: 1.5; color: #33415C;">
-      We received a request to reset the password for your LMS Portal account.
+      We received a request to reset the password for your HiG EDUCAMPUS account.
       This link expires in 30 minutes and can only be used once.
     </p>
     <a href="${resetUrl}"
@@ -34,7 +34,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   return getResendClient().emails.send({
     from: FROM,
     to,
-    subject: "Reset your LMS Portal password",
+    subject: "Reset your HiG EDUCAMPUS password",
     html,
   });
 }
@@ -44,7 +44,7 @@ export async function sendPasswordChangedNotice(to: string) {
   <div style="font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #12203D;">
     <h2 style="margin: 0 0 16px; font-size: 20px;">Your password was changed</h2>
     <p style="margin: 0 0 16px; line-height: 1.5; color: #33415C;">
-      This is a confirmation that the password on your LMS Portal account was just changed.
+      This is a confirmation that the password on your HiG EDUCAMPUS account was just changed.
       If this wasn't you, contact your institution's IT administrator immediately.
     </p>
   </div>`;
@@ -52,7 +52,7 @@ export async function sendPasswordChangedNotice(to: string) {
   return getResendClient().emails.send({
     from: FROM,
     to,
-    subject: "Your LMS Portal password was changed",
+    subject: "Your HiG EDUCAMPUS password was changed",
     html,
   });
 }

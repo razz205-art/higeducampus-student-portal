@@ -23,7 +23,7 @@ export default async function AdminResultsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-xl font-semibold text-ink-900">Manage Results</h1>
+        <h1 className="font-serif text-xl font-extrabold text-ink-900">Manage Results</h1>
         <p className="mt-1 text-sm text-ink-900/50">
           Publish official semester results. Internal assessments, mock tests, and assignment scores
           are managed separately (seeded for now — no authoring UI yet).

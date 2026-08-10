@@ -85,7 +85,7 @@ export default async function AdminAnalyticsPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-serif text-xl font-semibold text-ink-900">Analytics</h1>
+          <h1 className="font-serif text-xl font-extrabold text-ink-900">Analytics</h1>
           <p className="mt-1 text-sm text-ink-900/50">
             Institution-wide numbers across every module, pulled live — not a snapshot.
           </p>

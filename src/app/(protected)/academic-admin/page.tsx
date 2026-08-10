@@ -101,7 +101,7 @@ export default async function AdminDashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-serif text-xl font-semibold text-ink-900">Admin Dashboard</h1>
+        <h1 className="font-serif text-xl font-extrabold text-ink-900">Admin Dashboard</h1>
         <p className="mt-1 text-sm text-ink-900/50">
           An overview of the institution, and everything you can manage from here.
         </p>

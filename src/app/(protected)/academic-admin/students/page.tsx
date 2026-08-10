@@ -27,7 +27,7 @@ export default async function AdminStudentsPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-xl font-semibold text-ink-900">Manage Students</h1>
+        <h1 className="font-serif text-xl font-extrabold text-ink-900">Manage Students</h1>
         <p className="mt-1 text-sm text-ink-900/50">
           View, create, and enable/disable student accounts.
         </p>

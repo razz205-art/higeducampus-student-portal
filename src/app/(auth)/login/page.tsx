@@ -8,8 +8,8 @@ export default function LoginPage() {
   return (
     <AuthCard
       eyebrow="LMS Portal"
-      title="Sign in to your account"
-      subtitle="Students, faculty, and administrators use the same secure sign-in."
+      title="Welcome to HiG EDUCAMPUS"
+      subtitle="Your learning journey starts here."
       footer={
         <>
           New student?{" "}

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { GraduationCap } from "lucide-react";
 import { Role } from "@prisma/client";
 import { cn } from "@/lib/utils/cn";
 import { siteConfig } from "@/config/site";
@@ -23,10 +23,15 @@ export default function Sidebar({
   return (
     <nav aria-label="Primary" className="flex h-full w-full flex-col bg-ink-950 text-parchment-50">
       <div className="flex items-center gap-2.5 px-5 py-6">
-        <span className="flex h-9 w-9 items-center justify-center rounded-sm bg-gold-500/15 text-gold-400">
-          <GraduationCap size={20} strokeWidth={2} aria-hidden="true" />
-        </span>
-        <span className="font-serif text-lg font-semibold tracking-tight">{siteConfig.name}</span>
+        <Image
+          src="/hig-educampus-mark.png"
+          alt="HiG EDUCAMPUS"
+          width={36}
+          height={36}
+          className="h-9 w-9 shrink-0"
+          priority
+        />
+        <span className="font-serif text-lg font-extrabold tracking-tight">{siteConfig.name}</span>
       </div>
 
       <div className="flex-1 space-y-6 overflow-y-auto px-3 pb-6">

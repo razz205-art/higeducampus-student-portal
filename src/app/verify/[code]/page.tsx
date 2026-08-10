@@ -1,4 +1,5 @@
-import { ShieldCheck, ShieldX, GraduationCap } from "lucide-react";
+import Image from "next/image";
+import { ShieldCheck, ShieldX } from "lucide-react";
 import { getCertificateByVerificationCode } from "@/lib/data/certificates";
 
 export const metadata = { title: "Certificate Verification" };
@@ -13,13 +14,17 @@ export default async function VerifyCertificatePage({ params }: { params: { code
     <div className="flex min-h-screen items-center justify-center bg-ink-950 px-4 py-12">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-sm bg-gold-500/15 text-gold-400">
-            <GraduationCap size={22} aria-hidden="true" />
-          </span>
+          <Image
+            src="/hig-educampus-mark.png"
+            alt="HiG EDUCAMPUS"
+            width={44}
+            height={44}
+            className="mx-auto mb-3 h-11 w-11"
+          />
           <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-gold-400">
             HiG EDUCAMPUS
           </p>
-          <h1 className="font-serif text-2xl font-semibold text-parchment-50">
+          <h1 className="font-serif text-2xl font-extrabold text-parchment-50">
             Certificate Verification
           </h1>
         </div>

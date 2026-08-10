@@ -13,7 +13,7 @@ export default async function UnauthorizedPage() {
       <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-gold-600">
         Access denied
       </p>
-      <h1 className="font-serif text-2xl font-semibold text-ink-900">
+      <h1 className="font-serif text-2xl font-extrabold text-ink-900">
         You don&rsquo;t have permission to view this page
       </h1>
       <p className="mt-2 max-w-sm text-sm text-ink-900/60">

@@ -26,7 +26,7 @@ export default function DashboardCard({
                 <Icon size={15} strokeWidth={2} aria-hidden="true" />
               </span>
             )}
-            {title && <h2 className="text-sm font-semibold text-ink-900">{title}</h2>}
+            {title && <h2 className="text-sm font-bold text-ink-900">{title}</h2>}
           </div>
           {action}
         </div>

@@ -27,7 +27,7 @@ export default async function AdminMaterialsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-xl font-semibold text-ink-900">Manage Study Materials</h1>
+        <h1 className="font-serif text-xl font-extrabold text-ink-900">Manage Study Materials</h1>
         <p className="mt-1 text-sm text-ink-900/50">
           Organize documents, videos, and links into chapters per course. Files are linked by URL —
           no upload storage is configured in this project.

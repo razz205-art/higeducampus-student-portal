@@ -26,8 +26,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        serif: ["'Source Serif 4'", "Georgia", "serif"],
-        sans: ["Inter", "system-ui", "sans-serif"],
+        serif: ["var(--font-poppins)", "system-ui", "sans-serif"],
+        sans: ["var(--font-poppins)", "system-ui", "sans-serif"],
       },
       borderRadius: {
         sm: "4px",

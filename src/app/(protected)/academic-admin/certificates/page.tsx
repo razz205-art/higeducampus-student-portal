@@ -18,7 +18,7 @@ export default async function AdminCertificatesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-xl font-semibold text-ink-900">Manage Certificates</h1>
+        <h1 className="font-serif text-xl font-extrabold text-ink-900">Manage Certificates</h1>
         <p className="mt-1 text-sm text-ink-900/50">
           Every certificate students have issued for themselves. Revoking one immediately
           invalidates its QR verification link.
