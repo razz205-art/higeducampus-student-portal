@@ -24,11 +24,11 @@ export default function Sidebar({
     <nav aria-label="Primary" className="flex h-full w-full flex-col bg-ink-950 text-parchment-50">
       <div className="flex items-center gap-2.5 px-5 py-6">
         <Image
-          src="/hig-educampus-mark.png"
+          src="/hig-educampus-wordmark.png"
           alt="HiG EDUCAMPUS"
-          width={36}
-          height={36}
-          className="h-9 w-9 shrink-0"
+          width={166}
+          height={70}
+          className="h-9 w-auto shrink-0"
           priority
         />
         <span className="font-serif text-lg font-extrabold tracking-tight">{siteConfig.name}</span>
