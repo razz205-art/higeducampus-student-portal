@@ -6,6 +6,8 @@ export interface AdminCourseRow {
   name: string;
   facultyId: string;
   facultyName: string;
+  additionalFacultyIds: string[];
+  additionalFacultyNames: string[];
   enrolledCount: number;
 }
 
@@ -13,6 +15,9 @@ export async function getAllCoursesForAdmin(): Promise<AdminCourseRow[]> {
   const courses = await prisma.course.findMany({
     include: {
       faculty: { select: { name: true, email: true } },
+      additionalFaculty: {
+        include: { faculty: { select: { id: true, name: true, email: true } } },
+      },
       _count: { select: { enrollments: true } },
     },
     orderBy: { code: "asc" },
@@ -25,6 +30,9 @@ export async function getAllCoursesForAdmin(): Promise<AdminCourseRow[]> {
       name: string;
       facultyId: string;
       faculty: { name: string | null; email: string };
+      additionalFaculty: {
+        faculty: { id: string; name: string | null; email: string };
+      }[];
       _count: { enrollments: number };
     }) => ({
       id: c.id,
@@ -32,6 +40,8 @@ export async function getAllCoursesForAdmin(): Promise<AdminCourseRow[]> {
       name: c.name,
       facultyId: c.facultyId,
       facultyName: c.faculty.name ?? c.faculty.email,
+      additionalFacultyIds: c.additionalFaculty.map((cf) => cf.faculty.id),
+      additionalFacultyNames: c.additionalFaculty.map((cf) => cf.faculty.name ?? cf.faculty.email),
       enrolledCount: c._count.enrollments,
     })
   );

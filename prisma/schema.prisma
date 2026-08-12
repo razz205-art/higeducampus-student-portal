@@ -41,6 +41,7 @@ model User {
   // Attendance module
   batch              Batch?             @relation(fields: [batchId], references: [id], onDelete: SetNull)
   facultyCourses     Course[]           @relation("FacultyCourses")
+  coFacultyCourses   CourseFaculty[]    @relation("CoFacultyCourses")
   enrollments        Enrollment[]
   attendanceRecords  AttendanceRecord[] @relation("StudentAttendance")
   markedAttendance   AttendanceRecord[] @relation("MarkedByFaculty")
@@ -171,6 +172,7 @@ model Course {
   semesterCourseResults SemesterCourseResult[]
   certificates          Certificate[]
   materials             StudyMaterial[]
+  additionalFaculty     CourseFaculty[]
 
   @@index([facultyId])
   @@map("courses")
@@ -638,4 +640,25 @@ model StudyMaterial {
   @@index([courseId])
   @@index([moduleId])
   @@map("study_materials")
+}
+
+// Additional faculty co-teaching a course, beyond Course.facultyId (the
+// original "primary" faculty field, kept unchanged so nothing already
+// built around a single-faculty assumption breaks). Every function that
+// decides "does this faculty member have access to this course" — course
+// listings, attendance ownership, timetable, the faculty dashboard —
+// checks both facultyId and this table, so a co-faculty member gets full
+// access, not just a cosmetic name on a list.
+model CourseFaculty {
+  id        String   @id @default(cuid())
+  courseId  String
+  facultyId String
+  createdAt DateTime @default(now())
+
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  faculty User   @relation("CoFacultyCourses", fields: [facultyId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, facultyId])
+  @@index([facultyId])
+  @@map("course_faculty")
 }

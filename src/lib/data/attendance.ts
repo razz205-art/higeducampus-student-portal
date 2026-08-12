@@ -173,21 +173,26 @@ export async function getStudentAttendanceTrend(
 // Faculty views
 // ---------------------------------------------------------------------------
 
+/** Courses this faculty member teaches — as the primary faculty, or as an assigned co-faculty. */
 export async function getFacultyCourses(facultyId: string): Promise<CourseOption[]> {
   return prisma.course.findMany({
-    where: { facultyId },
+    where: { OR: [{ facultyId }, { additionalFaculty: { some: { facultyId } } }] },
     select: { id: true, code: true, name: true },
     orderBy: { code: "asc" },
   });
 }
 
-/** Throws if the course doesn't exist or isn't taught by this faculty member. */
+/** Throws unless this faculty member is the primary or an assigned co-faculty for the course. */
 export async function assertFacultyOwnsCourse(facultyId: string, courseId: string): Promise<void> {
   const course = await prisma.course.findUnique({
     where: { id: courseId },
-    select: { facultyId: true },
+    select: { facultyId: true, additionalFaculty: { select: { facultyId: true } } },
   });
-  if (!course || course.facultyId !== facultyId) {
+  const isAssigned =
+    course &&
+    (course.facultyId === facultyId ||
+      course.additionalFaculty.some((cf: { facultyId: string }) => cf.facultyId === facultyId));
+  if (!isAssigned) {
     throw new Error("You do not have permission to manage attendance for this course.");
   }
 }

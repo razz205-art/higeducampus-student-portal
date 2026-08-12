@@ -26,16 +26,31 @@ function CourseForm({
   const [code, setCode] = useState(initial?.code ?? "");
   const [name, setName] = useState(initial?.name ?? "");
   const [facultyId, setFacultyId] = useState(initial?.facultyId ?? faculty[0]?.id ?? "");
+  const [additionalFacultyIds, setAdditionalFacultyIds] = useState<string[]>(
+    initial?.additionalFacultyIds ?? []
+  );
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  function toggleCoFaculty(id: string) {
+    setAdditionalFacultyIds((prev) =>
+      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
+    );
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
       const res = isEditing
-        ? await updateCourseAction({ courseId: initial!.id, code, name, facultyId })
-        : await createCourseAction({ code, name, facultyId });
+        ? await updateCourseAction({
+            courseId: initial!.id,
+            code,
+            name,
+            facultyId,
+            additionalFacultyIds,
+          })
+        : await createCourseAction({ code, name, facultyId, additionalFacultyIds });
       if (res.success) {
         onDone();
       } else {
@@ -80,7 +95,7 @@ function CourseForm({
         />
         <div className="sm:col-span-2">
           <label htmlFor="facultyId" className="mb-1.5 block text-sm font-medium text-ink-800">
-            Faculty
+            Primary faculty
           </label>
           <select
             id="facultyId"
@@ -97,6 +112,33 @@ function CourseForm({
           </select>
         </div>
       </div>
+
+      {faculty.length > 1 && (
+        <div>
+          <p className="mb-1.5 text-sm font-medium text-ink-800">
+            Additional faculty{" "}
+            <span className="font-normal text-ink-900/40">
+              (optional — co-teachers get the same full access as the primary faculty)
+            </span>
+          </p>
+          <div className="grid grid-cols-1 gap-2 rounded-sm border border-ink-900/15 bg-white p-3 sm:grid-cols-2">
+            {faculty
+              .filter((f) => f.id !== facultyId)
+              .map((f) => (
+                <label key={f.id} className="flex items-center gap-2 text-sm text-ink-900/80">
+                  <input
+                    type="checkbox"
+                    checked={additionalFacultyIds.includes(f.id)}
+                    onChange={() => toggleCoFaculty(f.id)}
+                    className="rounded border-ink-900/25"
+                  />
+                  {f.name}
+                </label>
+              ))}
+          </div>
+        </div>
+      )}
+
       <Button type="submit" isLoading={isPending} className="sm:w-auto sm:px-8">
         {isEditing ? "Save changes" : "Add course"}
       </Button>
@@ -120,7 +162,14 @@ function Row({ course, onEdit }: { course: AdminCourseRow; onEdit: () => void })
         <span className="font-medium text-ink-900">{course.code}</span>
         <span className="text-ink-900/50"> — {course.name}</span>
       </td>
-      <td className="px-5 py-3 text-ink-900/70">{course.facultyName}</td>
+      <td className="px-5 py-3 text-ink-900/70">
+        {course.facultyName}
+        {course.additionalFacultyNames.length > 0 && (
+          <p className="mt-0.5 text-xs text-ink-900/40">
+            + {course.additionalFacultyNames.join(", ")}
+          </p>
+        )}
+      </td>
       <td className="px-5 py-3 text-ink-900/70">{course.enrolledCount}</td>
       <td className="px-5 py-3 text-right">
         <div className="flex justify-end gap-1.5">

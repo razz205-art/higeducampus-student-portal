@@ -18,6 +18,7 @@ const courseSchema = z.object({
   code: z.string().trim().min(2, "Enter a course code.").max(20),
   name: z.string().trim().min(2, "Enter a course name.").max(150),
   facultyId: z.string().min(1, "Choose a faculty member."),
+  additionalFacultyIds: z.array(z.string().min(1)).max(10).optional(),
 });
 
 export async function createCourseAction(
@@ -39,7 +40,16 @@ export async function createCourseAction(
     return { success: false, message: "A course with that code already exists." };
   }
 
-  await prisma.course.create({ data: parsed.data });
+  const { additionalFacultyIds, ...data } = parsed.data;
+  // A co-faculty entry matching the primary would be redundant — drop it.
+  const coFaculty = (additionalFacultyIds ?? []).filter((id) => id !== data.facultyId);
+
+  await prisma.course.create({
+    data: {
+      ...data,
+      additionalFaculty: { create: coFaculty.map((facultyId) => ({ facultyId })) },
+    },
+  });
 
   revalidatePath("/academic-admin/courses");
   return { success: true, message: "Course created." };
@@ -60,10 +70,17 @@ export async function updateCourseAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { courseId, ...data } = parsed.data;
+  const { courseId, additionalFacultyIds, ...data } = parsed.data;
+  const coFaculty = (additionalFacultyIds ?? []).filter((id) => id !== data.facultyId);
 
   try {
-    await prisma.course.update({ where: { id: courseId }, data });
+    await prisma.$transaction([
+      prisma.course.update({ where: { id: courseId }, data }),
+      prisma.courseFaculty.deleteMany({ where: { courseId } }),
+      prisma.courseFaculty.createMany({
+        data: coFaculty.map((facultyId) => ({ courseId, facultyId })),
+      }),
+    ]);
   } catch {
     return { success: false, message: "Course not found or could not be updated." };
   }
