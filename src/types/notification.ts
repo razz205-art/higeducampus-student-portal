@@ -26,6 +26,10 @@ export interface NotificationItem {
   createdByName: string;
   attachments: NotificationAttachmentItem[];
   isRead: boolean;
+  courseId: string | null;
+  courseName: string | null;
+  batchId: string | null;
+  batchName: string | null;
 }
 
 export interface NotificationSummary {

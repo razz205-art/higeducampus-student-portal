@@ -173,6 +173,7 @@ model Course {
   certificates          Certificate[]
   materials             StudyMaterial[]
   additionalFaculty     CourseFaculty[]
+  notifications         Notification[]
 
   @@index([facultyId])
   @@map("courses")
@@ -244,6 +245,7 @@ model Batch {
   students          User[]
   liveClassSessions LiveClassSession[]
   timetableSlots    TimetableSlot[]
+  notifications     Notification[]
 
   @@map("batches")
 }
@@ -461,17 +463,23 @@ model Notification {
   body        String               @db.Text
   category    NotificationCategory
   isPinned    Boolean              @default(false)
+  courseId    String? // set -> visible only to that course's students/faculty; null -> general
+  batchId     String? // set -> visible only to that batch's students; null -> general
   createdById String
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 
   createdBy   User                     @relation("NotificationCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  course      Course?                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  batch       Batch?                   @relation(fields: [batchId], references: [id], onDelete: Cascade)
   attachments NotificationAttachment[]
   reads       NotificationRead[]
 
   @@index([category])
   @@index([isPinned])
   @@index([createdAt])
+  @@index([courseId])
+  @@index([batchId])
   @@map("notifications")
 }
 

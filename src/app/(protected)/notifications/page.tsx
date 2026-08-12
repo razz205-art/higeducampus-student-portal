@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth";
 import { routes } from "@/config/site";
 import { getNotifications } from "@/lib/data/notifications";
+import { getAllCourses, getBatches } from "@/lib/data/attendance";
 import NotificationFilterBar from "@/components/notifications/NotificationFilterBar";
 import NotificationCenterView from "@/components/notifications/NotificationCenterView";
 import BrowserNotificationToggle from "@/components/notifications/BrowserNotificationToggle";
@@ -41,7 +42,7 @@ export default async function NotificationsPage({
 
   const showPinnedSection = filter !== "pinned";
 
-  const [pinned, items] = await Promise.all([
+  const [pinned, items, courses, batches] = await Promise.all([
     showPinnedSection
       ? getNotifications(session.user.id, { search, category, filter: "pinned" })
       : Promise.resolve([]),
@@ -51,6 +52,8 @@ export default async function NotificationsPage({
       filter,
       excludePinned: showPinnedSection,
     }),
+    isAdmin ? getAllCourses() : Promise.resolve([]),
+    isAdmin ? getBatches() : Promise.resolve([]),
   ]);
 
   return (
@@ -67,7 +70,13 @@ export default async function NotificationsPage({
 
       <NotificationFilterBar search={search} category={category} filter={filter} />
 
-      <NotificationCenterView pinned={pinned} items={items} isAdmin={isAdmin} />
+      <NotificationCenterView
+        pinned={pinned}
+        items={items}
+        isAdmin={isAdmin}
+        courses={courses}
+        batches={batches}
+      />
     </div>
   );
 }

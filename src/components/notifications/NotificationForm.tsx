@@ -8,6 +8,7 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
 import type { AttachmentType, NotificationCategory, NotificationItem } from "@/types/notification";
+import type { CourseOption, BatchOption } from "@/types/attendance";
 
 interface AttachmentDraft {
   type: AttachmentType;
@@ -17,12 +18,18 @@ interface AttachmentDraft {
 
 const emptyAttachment: AttachmentDraft = { type: "IMAGE", url: "", label: "" };
 
+type AudienceMode = "everyone" | "course" | "batch";
+
 export default function NotificationForm({
   initial,
+  courses,
+  batches,
   onSaved,
   onCancel,
 }: {
   initial?: NotificationItem;
+  courses: CourseOption[];
+  batches: BatchOption[];
   onSaved?: () => void;
   onCancel?: () => void;
 }) {
@@ -33,6 +40,11 @@ export default function NotificationForm({
     initial?.category ?? "ANNOUNCEMENT"
   );
   const [isPinned, setIsPinned] = useState(initial?.isPinned ?? false);
+  const [audienceMode, setAudienceMode] = useState<AudienceMode>(
+    initial?.courseId ? "course" : initial?.batchId ? "batch" : "everyone"
+  );
+  const [courseId, setCourseId] = useState(initial?.courseId ?? courses[0]?.id ?? "");
+  const [batchId, setBatchId] = useState(initial?.batchId ?? batches[0]?.id ?? "");
   const [attachments, setAttachments] = useState<AttachmentDraft[]>(
     initial?.attachments.map((a) => ({ type: a.type, url: a.url, label: a.label ?? "" })) ?? []
   );
@@ -58,6 +70,8 @@ export default function NotificationForm({
       body,
       category,
       isPinned,
+      courseId: audienceMode === "course" ? courseId || undefined : undefined,
+      batchId: audienceMode === "batch" ? batchId || undefined : undefined,
       attachments: attachments
         .filter((a) => a.url.trim())
         .map((a) => ({ type: a.type, url: a.url.trim(), label: a.label.trim() || undefined })),
@@ -74,6 +88,7 @@ export default function NotificationForm({
           setBody("");
           setCategory("ANNOUNCEMENT");
           setIsPinned(false);
+          setAudienceMode("everyone");
           setAttachments([]);
         }
         onSaved?.();
@@ -142,6 +157,58 @@ export default function NotificationForm({
           required
           className="w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2.5 text-sm text-ink-900 placeholder:text-ink-900/40 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
         />
+      </div>
+
+      <div>
+        <p className="mb-1.5 text-sm font-medium text-ink-800">Audience</p>
+        <div className="flex flex-wrap gap-2">
+          {(["everyone", "course", "batch"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setAudienceMode(mode)}
+              className={`rounded-sm px-3 py-1.5 text-xs font-medium transition-colors ${
+                audienceMode === mode
+                  ? "bg-ink-900 text-parchment-50"
+                  : "border border-ink-900/15 text-ink-900/60 hover:bg-ink-900/5"
+              }`}
+            >
+              {mode === "everyone"
+                ? "Everyone (General)"
+                : mode === "course"
+                  ? "Specific Course"
+                  : "Specific Batch"}
+            </button>
+          ))}
+        </div>
+        {audienceMode === "course" && (
+          <select
+            value={courseId}
+            onChange={(e) => setCourseId(e.target.value)}
+            className="mt-2 w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+          >
+            {courses.length === 0 && <option value="">No courses yet</option>}
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.code} — {c.name}
+              </option>
+            ))}
+          </select>
+        )}
+        {audienceMode === "batch" && (
+          <select
+            value={batchId}
+            onChange={(e) => setBatchId(e.target.value)}
+            className="mt-2 w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+          >
+            {batches.length === 0 && <option value="">No batches yet</option>}
+            {batches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       <label className="flex items-center gap-2 text-sm text-ink-900/70">

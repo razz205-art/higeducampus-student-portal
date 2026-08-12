@@ -5,6 +5,8 @@ import { z } from "zod";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
 
+import { getAudienceWhere } from "@/lib/data/notifications";
+
 export interface ActionResult {
   success: boolean;
   message: string;
@@ -35,6 +37,8 @@ const notificationSchema = z.object({
   body: z.string().trim().min(3, "Enter the notification content.").max(5000),
   category: z.enum(CATEGORY_VALUES),
   isPinned: z.boolean().default(false),
+  courseId: z.string().min(1).optional(),
+  batchId: z.string().min(1).optional(),
   attachments: z.array(attachmentSchema).max(10).default([]),
 });
 
@@ -51,7 +55,7 @@ export async function createNotificationAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { title, body, category, isPinned, attachments } = parsed.data;
+  const { title, body, category, isPinned, courseId, batchId, attachments } = parsed.data;
 
   await prisma.notification.create({
     data: {
@@ -59,6 +63,8 @@ export async function createNotificationAction(
       body,
       category,
       isPinned,
+      courseId: courseId || null,
+      batchId: batchId || null,
       createdById: session.user.id,
       attachments: {
         create: attachments.map((a) => ({ type: a.type, url: a.url, label: a.label || null })),
@@ -86,7 +92,8 @@ export async function updateNotificationAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { notificationId, title, body, category, isPinned, attachments } = parsed.data;
+  const { notificationId, title, body, category, isPinned, courseId, batchId, attachments } =
+    parsed.data;
 
   try {
     await prisma.$transaction([
@@ -98,6 +105,8 @@ export async function updateNotificationAction(
           body,
           category,
           isPinned,
+          courseId: courseId || null,
+          batchId: batchId || null,
           attachments: {
             create: attachments.map((a) => ({
               type: a.type,
@@ -179,9 +188,13 @@ export async function markAllNotificationsReadAction(): Promise<ActionResult> {
   const session = await auth();
   if (!session?.user) return { success: false, message: "You must be signed in." };
 
-  const all = await prisma.notification.findMany({ select: { id: true } });
+  const audienceWhere = await getAudienceWhere(session.user.id);
+  const visible = await prisma.notification.findMany({
+    where: audienceWhere,
+    select: { id: true },
+  });
   await prisma.notificationRead.createMany({
-    data: all.map((n: { id: string }) => ({
+    data: visible.map((n: { id: string }) => ({
       userId: session.user.id,
       notificationId: n.id,
     })),

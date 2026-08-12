@@ -86,6 +86,11 @@ export default function NotificationCard({
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-ink-900/45">
             <NotificationCategoryBadge category={notification.category} />
+            {(notification.courseName || notification.batchName) && (
+              <span className="rounded-sm bg-ink-900/5 px-1.5 py-0.5 font-medium text-ink-900/60">
+                {notification.courseName ?? notification.batchName}
+              </span>
+            )}
             <span>{formatRelativeTime(notification.createdAt)}</span>
             <span>&middot;</span>
             <span>{notification.createdByName}</span>

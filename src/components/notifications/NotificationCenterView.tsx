@@ -6,15 +6,20 @@ import { markAllNotificationsReadAction } from "@/lib/actions/notifications";
 import NotificationForm from "@/components/notifications/NotificationForm";
 import NotificationCard from "@/components/notifications/NotificationCard";
 import type { NotificationItem } from "@/types/notification";
+import type { CourseOption, BatchOption } from "@/types/attendance";
 
 export default function NotificationCenterView({
   pinned,
   items,
   isAdmin,
+  courses,
+  batches,
 }: {
   pinned: NotificationItem[];
   items: NotificationItem[];
   isAdmin: boolean;
+  courses: CourseOption[];
+  batches: BatchOption[];
 }) {
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<NotificationItem | null>(null);
@@ -47,6 +52,8 @@ export default function NotificationCenterView({
 
       {isAdmin && showCreate && (
         <NotificationForm
+          courses={courses}
+          batches={batches}
           onSaved={() => setShowCreate(false)}
           onCancel={() => setShowCreate(false)}
         />
@@ -55,6 +62,8 @@ export default function NotificationCenterView({
       {isAdmin && editing && (
         <NotificationForm
           initial={editing}
+          courses={courses}
+          batches={batches}
           onSaved={() => setEditing(null)}
           onCancel={() => setEditing(null)}
         />
