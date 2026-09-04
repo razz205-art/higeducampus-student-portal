@@ -69,3 +69,51 @@ export async function deleteBatchAction(batchId: string): Promise<ActionResult> 
   revalidatePath("/academic-admin/students");
   return { success: true, message: "Batch deleted." };
 }
+
+export interface BatchStudentRow {
+  id: string;
+  name: string | null;
+  email: string;
+  registrationNumber: string | null;
+  isActive: boolean;
+}
+
+export interface BatchStudentsResult {
+  success: boolean;
+  message?: string;
+  students: BatchStudentRow[];
+}
+
+/**
+ * Fetches the students enrolled in a single batch — called on demand when
+ * an admin expands a batch row, rather than joined into the main batches
+ * query, since most batches will never actually be expanded in a given
+ * session and their student lists could be long.
+ */
+export async function getBatchStudentsAction(batchId: string): Promise<BatchStudentsResult> {
+  const session = await auth();
+  if (!session?.user) {
+    return { success: false, message: "You must be signed in.", students: [] };
+  }
+  if (!isAdmin(session.user.role)) {
+    return {
+      success: false,
+      message: "You don't have permission to view this.",
+      students: [],
+    };
+  }
+
+  const students = await prisma.user.findMany({
+    where: { batchId, role: "STUDENT" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      registrationNumber: true,
+      isActive: true,
+    },
+    orderBy: { name: "asc" },
+  });
+
+  return { success: true, students };
+}
