@@ -1,12 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, Trash2, Users } from "lucide-react";
-import { createBatchAction, deleteBatchAction } from "@/lib/actions/admin-batches";
+import { ChevronDown, ChevronRight, Plus, Trash2, Users } from "lucide-react";
+import {
+  createBatchAction,
+  deleteBatchAction,
+  getBatchStudentsAction,
+} from "@/lib/actions/admin-batches";
+import type { BatchStudentRow } from "@/lib/actions/admin-batches";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
+import Badge from "@/components/ui/Badge";
 import type { AdminBatchRow } from "@/lib/data/admin-batches";
 
 function BatchForm({ onDone }: { onDone: () => void }) {
@@ -83,10 +89,75 @@ function BatchForm({ onDone }: { onDone: () => void }) {
   );
 }
 
+function StudentsList({ batchId, batchName }: { batchId: string; batchName: string }) {
+  const [isPending, startTransition] = useTransition();
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [students, setStudents] = useState<BatchStudentRow[]>([]);
+
+  // Fetch once, the first time this renders (i.e. the first time the row
+  // is expanded) — not re-fetched on every collapse/expand toggle.
+  if (!loaded && !isPending && !error) {
+    startTransition(async () => {
+      const result = await getBatchStudentsAction(batchId);
+      if (result.success) {
+        setStudents(result.students);
+        setLoaded(true);
+      } else {
+        setError(result.message ?? "Couldn't load students.");
+      }
+    });
+  }
+
+  return (
+    <tr>
+      <td colSpan={4} className="bg-ink-900/[0.02] px-5 py-4">
+        {isPending && !loaded && (
+          <p className="text-sm text-ink-900/45">Loading students in {batchName}…</p>
+        )}
+        {error && <p className="text-sm text-signal-error">{error}</p>}
+        {loaded && students.length === 0 && (
+          <p className="text-sm text-ink-900/45">No students enrolled in this batch yet.</p>
+        )}
+        {loaded && students.length > 0 && (
+          <div className="overflow-x-auto rounded-sm border border-ink-900/8 bg-white">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-ink-900/8 border-b text-xs uppercase tracking-wide text-ink-900/40">
+                  <th className="px-4 py-2 font-medium">Name</th>
+                  <th className="px-4 py-2 font-medium">Email</th>
+                  <th className="px-4 py-2 font-medium">Registration No.</th>
+                  <th className="px-4 py-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-ink-900/8 divide-y">
+                {students.map((s) => (
+                  <tr key={s.id} className={s.isActive ? "" : "opacity-50"}>
+                    <td className="px-4 py-2 font-medium text-ink-900">{s.name ?? "—"}</td>
+                    <td className="px-4 py-2 text-ink-900/70">{s.email}</td>
+                    <td className="px-4 py-2 text-ink-900/70">{s.registrationNumber ?? "—"}</td>
+                    <td className="px-4 py-2">
+                      <Badge variant={s.isActive ? "success" : "neutral"}>
+                        {s.isActive ? "Active" : "Disabled"}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </td>
+    </tr>
+  );
+}
+
 function Row({ batch }: { batch: AdminBatchRow }) {
   const [isPending, startTransition] = useTransition();
+  const [expanded, setExpanded] = useState(false);
 
-  function remove() {
+  function remove(e: React.MouseEvent) {
+    e.stopPropagation();
     if (!confirm(`Delete batch "${batch.name}"?`)) return;
     startTransition(() => {
       deleteBatchAction(batch.id);
@@ -94,23 +165,39 @@ function Row({ batch }: { batch: AdminBatchRow }) {
   }
 
   return (
-    <tr>
-      <td className="px-5 py-3 font-medium text-ink-900">{batch.name}</td>
-      <td className="px-5 py-3 text-ink-900/70">
-        {batch.startYear} – {batch.endYear}
-      </td>
-      <td className="px-5 py-3 text-ink-900/70">{batch.studentCount}</td>
-      <td className="px-5 py-3 text-right">
-        <button
-          onClick={remove}
-          disabled={isPending}
-          aria-label="Delete"
-          className="rounded-sm p-1.5 text-ink-900/50 hover:bg-signal-error/10 hover:text-signal-error disabled:opacity-50"
-        >
-          <Trash2 size={15} aria-hidden="true" />
-        </button>
-      </td>
-    </tr>
+    <>
+      <tr
+        onClick={() => setExpanded((v) => !v)}
+        className="cursor-pointer hover:bg-ink-900/[0.02]"
+        aria-expanded={expanded}
+      >
+        <td className="px-5 py-3 font-medium text-ink-900">
+          <span className="flex items-center gap-1.5">
+            {expanded ? (
+              <ChevronDown size={14} className="text-ink-900/40" aria-hidden="true" />
+            ) : (
+              <ChevronRight size={14} className="text-ink-900/40" aria-hidden="true" />
+            )}
+            {batch.name}
+          </span>
+        </td>
+        <td className="px-5 py-3 text-ink-900/70">
+          {batch.startYear} – {batch.endYear}
+        </td>
+        <td className="px-5 py-3 text-ink-900/70">{batch.studentCount}</td>
+        <td className="px-5 py-3 text-right">
+          <button
+            onClick={remove}
+            disabled={isPending}
+            aria-label="Delete"
+            className="rounded-sm p-1.5 text-ink-900/50 hover:bg-signal-error/10 hover:text-signal-error disabled:opacity-50"
+          >
+            <Trash2 size={15} aria-hidden="true" />
+          </button>
+        </td>
+      </tr>
+      {expanded && <StudentsList batchId={batch.id} batchName={batch.name} />}
+    </>
   );
 }
 
