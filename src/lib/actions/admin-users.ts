@@ -122,6 +122,51 @@ export async function toggleUserActiveAction(
   return { success: true, message: isActive ? "Account reactivated." : "Account disabled." };
 }
 
+/**
+ * Permanently deletes a user account — unlike toggleUserActiveAction, this
+ * is not reversible. Every table that references a student or faculty
+ * member (enrollments, attendance, quiz attempts, assignment submissions,
+ * sessions, password reset tokens, etc.) is defined with onDelete: Cascade
+ * in the Prisma schema, so this single delete call cleans up all of it
+ * automatically — no orphaned rows left behind. AuditLog is the one
+ * exception (onDelete: SetNull), so the audit trail survives the account
+ * being removed, just without a live user reference.
+ *
+ * Because email and registrationNumber are unique columns on User, deleting
+ * a student here immediately frees up that email/registration number —
+ * the same student can be re-added right after with createUserAction or
+ * the bulk-add flow, and it will succeed instead of hitting "already exists."
+ */
+export async function deleteUserAction(userId: string): Promise<ActionResult> {
+  const session = await auth();
+  if (!session?.user) return { success: false, message: "You must be signed in." };
+  if (!isAdmin(session.user.role)) {
+    return { success: false, message: "You don't have permission to delete accounts." };
+  }
+  if (userId === session.user.id) {
+    return { success: false, message: "You can't delete your own account." };
+  }
+
+  let role: Role;
+  try {
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { role: true },
+    });
+    role = user.role;
+    await prisma.user.delete({ where: { id: userId } });
+  } catch {
+    return { success: false, message: "Account not found or already deleted." };
+  }
+
+  revalidatePath("/academic-admin/students");
+  revalidatePath("/academic-admin/faculty");
+
+  return {
+    success: true,
+    message: `${role === "STUDENT" ? "Student" : "Faculty"} account permanently deleted.`,
+  };
+}
 // ---------------------------------------------------------------------------
 // Bulk student creation — one row per line, pasted in. Password is optional
 // per row: if left blank, a random temporary password is generated and
