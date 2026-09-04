@@ -88,7 +88,7 @@ export default function LoginForm() {
             required
           />
           <div className="mt-1.5 text-right">
-            
+            <a
               href="/forgot-password"
               className="text-xs font-medium text-ink-800 hover:text-gold-600"
             >
