@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { ChevronRight, Plus, Trash2, Users, BookOpen, X } from "lucide-react";
 import {
   createBatchAction,
@@ -176,17 +176,26 @@ function CourseAccessSection({
   const [rows, setRows] = useState<BatchCourseAccessRow[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState("");
 
-  if (!loaded && !isLoadPending && !error) {
+  function loadRows() {
     startLoadTransition(async () => {
       const result = await getBatchCourseAccessAction(batchId);
       if (result.success) {
         setRows(result.rows);
         setLoaded(true);
+        setError(null);
       } else {
         setError(result.message ?? "Couldn't load course access.");
       }
     });
   }
+
+  // useEffect never runs during server rendering, so fetching here (rather
+  // than directly in the render body) is what actually guarantees this
+  // can't crash the SSR pass.
+  useEffect(() => {
+    loadRows();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchId]);
 
   const availableCourses = courses.filter((c) => !rows.some((r) => r.courseId === c.id));
 
@@ -200,8 +209,8 @@ function CourseAccessSection({
         setGrantError(res.message);
         return;
       }
-      setLoaded(false);
       setSelectedCourseId("");
+      loadRows();
     });
   }
 
@@ -211,7 +220,7 @@ function CourseAccessSection({
     }
     startTransition(async () => {
       await revokeBatchCourseAccessAction(courseBatchId);
-      setLoaded(false);
+      loadRows();
     });
   }
 
@@ -221,6 +230,10 @@ function CourseAccessSection({
         <BookOpen size={13} aria-hidden="true" />
         Course access
       </p>
+
+      {isLoadPending && !loaded && (
+        <p className="text-sm text-ink-900/45">Loading course access…</p>
+      )}
 
       {error && <p className="text-sm text-signal-error">{error}</p>}
 
@@ -285,9 +298,10 @@ function StudentsTable({ batchId, batchName }: { batchId: string; batchName: str
   const [error, setError] = useState<string | null>(null);
   const [students, setStudents] = useState<BatchStudentRow[]>([]);
 
-  // Fetch once, the first time this renders (i.e. the first time the row
-  // is expanded) — not re-fetched on every collapse/expand toggle.
-  if (!loaded && !isPending && !error) {
+  // useEffect never runs during server rendering, so fetching here (rather
+  // than directly in the render body) is what actually guarantees this
+  // can't crash the SSR pass.
+  useEffect(() => {
     startTransition(async () => {
       const result = await getBatchStudentsAction(batchId);
       if (result.success) {
@@ -297,7 +311,8 @@ function StudentsTable({ batchId, batchName }: { batchId: string; batchName: str
         setError(result.message ?? "Couldn't load students.");
       }
     });
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchId]);
 
   return (
     <div className="space-y-2.5">
@@ -346,8 +361,6 @@ function StudentsTable({ batchId, batchName }: { batchId: string; batchName: str
 
 function BatchCard({ batch, courses }: { batch: AdminBatchRow; courses: CourseOption[] }) {
   const [isPending, startTransition] = useTransition();
-  const [hasOpened, setHasOpened] = useState(false);
-  const detailsRef = useRef<HTMLDetailsElement>(null);
 
   function remove(e: React.MouseEvent) {
     e.preventDefault();
@@ -358,29 +371,8 @@ function BatchCard({ batch, courses }: { batch: AdminBatchRow; courses: CourseOp
     });
   }
 
-  // Native <details> always renders its children into the DOM (just hides
-  // them when closed), including during server rendering — so without a
-  // "has this ever been opened" guard, CourseAccessSection/StudentsTable
-  // would try to fetch data while the page is being server-rendered and
-  // crash the route. We track that via the browser's own toggle event so
-  // expand/collapse itself stays fully native and reliable.
-  //
-  // The toggle event on <details> does not bubble, and React 18's event
-  // system relies on bubbling for delegation — so the onToggle *prop*
-  // doesn't fire reliably here. Attaching the listener straight to the DOM
-  // node with a ref sidesteps React's event system entirely.
-  useEffect(() => {
-    const el = detailsRef.current;
-    if (!el) return;
-    function handleToggle() {
-      if (el!.open) setHasOpened(true);
-    }
-    el.addEventListener("toggle", handleToggle);
-    return () => el.removeEventListener("toggle", handleToggle);
-  }, []);
-
   return (
-    <details ref={detailsRef} className="group border-ink-900/8 border-b">
+    <details className="group border-ink-900/8 border-b">
       <summary className="grid cursor-pointer list-none grid-cols-[1fr_140px_100px_44px] items-center gap-2 px-5 py-3 text-sm hover:bg-ink-900/[0.02] [&::-webkit-details-marker]:hidden">
         <span className="flex items-center gap-1.5 font-medium text-ink-900">
           <ChevronRight
@@ -407,12 +399,8 @@ function BatchCard({ batch, courses }: { batch: AdminBatchRow; courses: CourseOp
         </span>
       </summary>
       <div className="space-y-5 bg-ink-900/[0.02] px-5 py-4">
-        {hasOpened && (
-          <>
-            <CourseAccessSection batchId={batch.id} courses={courses} />
-            <StudentsTable batchId={batch.id} batchName={batch.name} />
-          </>
-        )}
+        <CourseAccessSection batchId={batch.id} courses={courses} />
+        <StudentsTable batchId={batch.id} batchName={batch.name} />
       </div>
     </details>
   );
