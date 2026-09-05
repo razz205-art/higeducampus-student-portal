@@ -1,309 +1,115 @@
-"use client";
-
-import { useRef, useState, useTransition } from "react";
-import Link from "next/link";
-import { Plus, Trash2, Upload, HelpCircle, ClipboardList, Eye } from "lucide-react";
-import {
-  previewTestReportUploadAction,
-  publishTestReportAction,
-  deleteTestReportAction,
-} from "@/lib/actions/test-reports";
-import type { TestReportPreviewRow } from "@/lib/actions/test-reports";
+import { Users, TrendingUp, CheckCircle2, Trophy } from "lucide-react";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
-import Input from "@/components/ui/Input";
-import Button from "@/components/ui/Button";
-import Alert from "@/components/ui/Alert";
 import Badge from "@/components/ui/Badge";
-import type { TestReportSummary } from "@/types/test-reports";
+import TestReportScoreChart from "@/components/results/TestReportScoreChart";
+import type { TestReportDetail as TestReportDetailData } from "@/types/test-reports";
 
-const MATCH_LABEL: Record<TestReportPreviewRow["matchStatus"], string> = {
-  matched: "Linked",
-  not_found: "No account found",
-  ambiguous: "Multiple accounts match",
-};
-
-function UploadForm({ onDone }: { onDone: () => void }) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [title, setTitle] = useState("");
-  const [passingPercentage, setPassingPercentage] = useState("60");
-  const [rows, setRows] = useState<TestReportPreviewRow[] | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [publishResult, setPublishResult] = useState<{ success: boolean; message: string } | null>(
-    null
-  );
-  const [isPreviewPending, startPreviewTransition] = useTransition();
-  const [isPublishPending, startPublishTransition] = useTransition();
-
-  function handlePreview(e: React.FormEvent) {
-    e.preventDefault();
-    setPreviewError(null);
-    setPublishResult(null);
-    setRows(null);
-
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) {
-      setPreviewError("Choose a file first.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.set("file", file);
-    formData.set("passingPercentage", passingPercentage);
-
-    startPreviewTransition(async () => {
-      const res = await previewTestReportUploadAction(formData);
-      if (!res.success) {
-        setPreviewError(res.message ?? "Couldn't process that file.");
-        return;
-      }
-      setRows(res.rows);
-    });
-  }
-
-  function handlePublish() {
-    if (!rows) return;
-    startPublishTransition(async () => {
-      const res = await publishTestReportAction({
-        title,
-        passingPercentage: Number(passingPercentage),
-        rows: rows.map((r) => ({
-          rank: r.rank,
-          name: r.name,
-          percentage: r.percentage,
-          correct: r.correct,
-          incorrect: r.incorrect,
-          timeRaw: r.timeRaw,
-          status: r.status,
-          studentId: r.studentId,
-        })),
-      });
-      setPublishResult(res);
-      if (res.success) {
-        setRows(null);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        onDone();
-      }
-    });
-  }
-
-  const matchedCount = rows?.filter((r) => r.matchStatus === "matched").length ?? 0;
-  const unmatchedCount = rows ? rows.length - matchedCount : 0;
-
+function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="space-y-4 rounded-sm border border-gold-500/30 bg-gold-500/5 p-5">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-ink-900">Upload test report</p>
-        <button
-          type="button"
-          onClick={onDone}
-          className="text-xs font-medium text-ink-900/50 hover:text-ink-900"
-        >
-          Cancel
-        </button>
-      </div>
-
-      <p className="flex items-start gap-1.5 text-xs text-ink-900/50">
-        <HelpCircle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-        Needs "Name" and "Percentage" columns (.csv or .xlsx). "Rank", "Correct", "Incorrect", and
-        "Time" columns are used if present — rank is otherwise worked out from percentage. Every
-        row in the file is published as part of the report, even ones that don't match a student
-        account, so class-wide totals stay accurate.
-      </p>
-
-      <form onSubmit={handlePreview} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Input
-          label="Test title"
-          name="title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="e.g. Weekly Test 1"
-          required
-        />
-        <Input
-          label="Passing percentage"
-          name="passingPercentage"
-          type="number"
-          min={0}
-          max={100}
-          step="0.1"
-          value={passingPercentage}
-          onChange={(e) => setPassingPercentage(e.target.value)}
-          required
-        />
-        <div>
-          <label htmlFor="testReportFile" className="mb-1.5 block text-sm font-medium text-ink-800">
-            File
-          </label>
-          <input
-            ref={fileInputRef}
-            id="testReportFile"
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            className="w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2 text-sm text-ink-900 file:mr-3 file:rounded-sm file:border-0 file:bg-ink-900 file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-parchment-50"
-          />
-        </div>
-
-        {previewError && (
-          <div className="sm:col-span-3">
-            <Alert variant="error">{previewError}</Alert>
-          </div>
-        )}
-
-        <div className="sm:col-span-3">
-          <Button type="submit" isLoading={isPreviewPending} className="sm:w-auto sm:px-8">
-            <Upload size={14} className="mr-1.5" aria-hidden="true" />
-            Preview
-          </Button>
-        </div>
-      </form>
-
-      {rows && (
-        <div className="space-y-3 border-t border-ink-900/10 pt-4">
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="rounded-sm bg-signal-success/10 px-2 py-1 font-medium text-signal-success">
-              {rows.length} students total
-            </span>
-            <span className="rounded-sm bg-signal-success/10 px-2 py-1 font-medium text-signal-success">
-              {matchedCount} linked to an account
-            </span>
-            {unmatchedCount > 0 && (
-              <span className="rounded-sm bg-gold-500/10 px-2 py-1 font-medium text-gold-600">
-                {unmatchedCount} without a linked account
-              </span>
-            )}
-          </div>
-
-          {publishResult && (
-            <Alert variant={publishResult.success ? "success" : "error"}>
-              {publishResult.message}
-            </Alert>
-          )}
-
-          <div className="max-h-80 overflow-y-auto rounded-sm border border-ink-900/10 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-parchment-50">
-                <tr className="border-ink-900/8 border-b text-xs uppercase tracking-wide text-ink-900/40">
-                  <th className="px-3 py-2 font-medium">Rank</th>
-                  <th className="px-3 py-2 font-medium">Name</th>
-                  <th className="px-3 py-2 font-medium">%</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Account</th>
-                </tr>
-              </thead>
-              <tbody className="divide-ink-900/8 divide-y">
-                {rows.map((r) => (
-                  <tr key={r.rowNumber}>
-                    <td className="px-3 py-2 text-ink-900/50">{r.rank}</td>
-                    <td className="px-3 py-2 text-ink-900">{r.name}</td>
-                    <td className="px-3 py-2 text-ink-900/70">{r.percentage}%</td>
-                    <td className="px-3 py-2">
-                      <Badge variant={r.status === "PASS" ? "success" : "warning"}>
-                        {r.status === "PASS" ? "Pass" : "Needs Improvement"}
-                      </Badge>
-                    </td>
-                    <td className="px-3 py-2 text-xs">
-                      {r.matchStatus === "matched" ? (
-                        <span className="text-signal-success">{r.studentName}</span>
-                      ) : (
-                        <span className="text-ink-900/50">{MATCH_LABEL[r.matchStatus]}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <Button
-            type="button"
-            onClick={handlePublish}
-            isLoading={isPublishPending}
-            className="sm:w-auto sm:px-8"
-          >
-            Publish report ({rows.length} students)
-          </Button>
-        </div>
-      )}
+    <div className="rounded-sm border-l-4 border-signal-success bg-white p-4">
+      <p className="font-serif text-2xl font-semibold text-ink-900">{value}</p>
+      <p className="mt-1 text-xs font-medium uppercase tracking-wide text-ink-900/45">{label}</p>
     </div>
   );
 }
 
-function Row({ report }: { report: TestReportSummary }) {
-  const [isPending, startTransition] = useTransition();
-
-  function remove() {
-    if (!confirm(`Delete "${report.title}"? This removes every student's result for it.`)) return;
-    startTransition(() => {
-      deleteTestReportAction(report.id);
-    });
-  }
-
-  return (
-    <tr>
-      <td className="px-5 py-3">
-        <p className="font-medium text-ink-900">{report.title}</p>
-        <p className="text-xs text-ink-900/45">{report.createdAt}</p>
-      </td>
-      <td className="px-5 py-3 text-ink-900/70">{report.totalStudents}</td>
-      <td className="px-5 py-3 text-ink-900/70">{report.averagePercentage}%</td>
-      <td className="px-5 py-3 text-ink-900/70">{report.passRate}%</td>
-      <td className="px-5 py-3 text-right">
-        <div className="flex justify-end gap-1.5">
-          <Link
-            href={`/academic-admin/test-reports/${report.id}`}
-            aria-label="View report"
-            className="rounded-sm p-1.5 text-ink-900/50 hover:bg-ink-900/5 hover:text-ink-900"
-          >
-            <Eye size={15} aria-hidden="true" />
-          </Link>
-          <button
-            onClick={remove}
-            disabled={isPending}
-            aria-label="Delete"
-            className="rounded-sm p-1.5 text-ink-900/50 hover:bg-signal-error/10 hover:text-signal-error disabled:opacity-50"
-          >
-            <Trash2 size={15} aria-hidden="true" />
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-export default function TestReportsView({ reports }: { reports: TestReportSummary[] }) {
-  const [showUpload, setShowUpload] = useState(false);
-
+export default function TestReportDetail({ report }: { report: TestReportDetailData }) {
   return (
     <div className="space-y-6">
-      {!showUpload && (
-        <button
-          onClick={() => setShowUpload(true)}
-          className="flex items-center gap-1.5 rounded-sm bg-ink-900 px-3.5 py-2 text-xs font-medium text-parchment-50 hover:bg-ink-800"
-        >
-          <Plus size={14} aria-hidden="true" />
-          Upload test report
-        </button>
-      )}
-      {showUpload && <UploadForm onDone={() => setShowUpload(false)} />}
+      <div>
+        <h1 className="font-serif text-2xl font-semibold text-ink-900">{report.title}</h1>
+        <p className="mt-1 text-sm text-ink-900/50">{report.createdAt}</p>
+      </div>
 
-      <DashboardCard title="Test Reports" icon={ClipboardList} bodyClassName="p-0">
-        {reports.length === 0 ? (
-          <p className="p-5 text-center text-sm text-ink-900/45">No test reports uploaded yet.</p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Total Students" value={String(report.totalStudents)} />
+        <StatCard label="Average Score" value={`${report.averagePercentage}%`} />
+        <StatCard
+          label={`Pass Rate (≥${report.passingPercentage}%)`}
+          value={`${report.passRate}%`}
+        />
+        <StatCard label="Highest Score" value={`${report.highestPercentage}%`} />
+      </div>
+
+      <DashboardCard title="Top 5 Performers" icon={Trophy}>
+        {report.topPerformers.length === 0 ? (
+          <p className="py-6 text-center text-sm text-ink-900/45">No students yet.</p>
+        ) : (
+          <div className="divide-ink-900/8 divide-y">
+            {report.topPerformers.map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gold-500/15 text-xs font-semibold text-gold-600">
+                    {p.rank}
+                  </span>
+                  <div>
+                    <p className="font-medium text-ink-900">{p.name}</p>
+                    <p className="text-xs text-ink-900/45">
+                      {p.correct !== null && p.incorrect !== null
+                        ? `${p.correct} correct · ${p.incorrect} incorrect`
+                        : null}
+                      {p.timeRaw ? ` · ${p.timeRaw}` : null}
+                    </p>
+                  </div>
+                </div>
+                <span className="font-serif text-lg font-semibold text-ink-900">
+                  {p.percentage}%
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </DashboardCard>
+
+      <TestReportScoreChart data={report.scoreDistribution} />
+
+      <DashboardCard title="Complete Rankings" icon={Users} bodyClassName="p-0">
+        {report.entries.length === 0 ? (
+          <p className="p-5 text-center text-sm text-ink-900/45">No students yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-ink-900/8 border-b text-xs uppercase tracking-wide text-ink-900/40">
-                  <th className="px-5 py-3 font-medium">Test</th>
-                  <th className="px-5 py-3 font-medium">Students</th>
-                  <th className="px-5 py-3 font-medium">Average</th>
-                  <th className="px-5 py-3 font-medium">Pass rate</th>
-                  <th className="px-5 py-3" />
+                  <th className="px-5 py-3 font-medium">Rank</th>
+                  <th className="px-5 py-3 font-medium">Name</th>
+                  <th className="px-5 py-3 font-medium">Score (%)</th>
+                  <th className="px-5 py-3 font-medium">Correct</th>
+                  <th className="px-5 py-3 font-medium">Incorrect</th>
+                  <th className="px-5 py-3 font-medium">Time</th>
+                  <th className="px-5 py-3 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-ink-900/8 divide-y">
-                {reports.map((r) => (
-                  <Row key={r.id} report={r} />
+                {report.entries.map((e) => (
+                  <tr key={e.id}>
+                    <td className="px-5 py-3 text-ink-900/50">{e.rank}</td>
+                    <td className="px-5 py-3 text-ink-900">
+                      {e.name}
+                      {!e.studentId && (
+                        <span className="ml-1.5 text-xs text-ink-900/40">(no linked account)</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 font-medium text-ink-900">{e.percentage}%</td>
+                    <td className="px-5 py-3 text-signal-success">{e.correct ?? "—"}</td>
+                    <td className="px-5 py-3 text-signal-error">{e.incorrect ?? "—"}</td>
+                    <td className="px-5 py-3 text-ink-900/60">{e.timeRaw ?? "—"}</td>
+                    <td className="px-5 py-3">
+                      <Badge variant={e.status === "PASS" ? "success" : "warning"}>
+                        {e.status === "PASS" ? (
+                          <span className="flex items-center gap-1">
+                            <CheckCircle2 size={11} aria-hidden="true" />
+                            Pass
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <TrendingUp size={11} aria-hidden="true" />
+                            Needs Improvement
+                          </span>
+                        )}
+                      </Badge>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
