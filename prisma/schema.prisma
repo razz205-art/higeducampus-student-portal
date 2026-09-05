@@ -170,6 +170,7 @@ model Course {
   quizzes     Quiz[]
   assignments Assignment[]
   timetableSlots TimetableSlot[]
+testReports    TestReport[]
   semesterCourseResults SemesterCourseResult[]
   certificates          Certificate[]
   materials             StudyMaterial[]
@@ -246,6 +247,7 @@ model Batch {
   students          User[]
   liveClassSessions LiveClassSession[]
   timetableSlots    TimetableSlot[]
+testReports       TestReport[]
   notifications     Notification[]
 
   @@map("batches")
