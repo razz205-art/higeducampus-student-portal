@@ -78,7 +78,7 @@ export async function grantBatchCourseAccessAction(
   await prisma.courseBatch.create({ data: { courseId, batchId } });
 
   const students = await prisma.user.findMany({
-    where: { batchId, role: "STUDENT" },
+    where: { studentBatches: { some: { batchId } }, role: "STUDENT" },
     select: { id: true },
   });
   if (students.length > 0) {
@@ -120,7 +120,7 @@ export async function revokeBatchCourseAccessAction(courseBatchId: string): Prom
 
   await prisma.courseBatch.delete({ where: { id: courseBatchId } });
   await prisma.enrollment.deleteMany({
-    where: { courseId: link.courseId, student: { batchId: link.batchId } },
+    where: { courseId: link.courseId, student: { studentBatches: { some: { batchId: link.batchId } } } },
   });
 
   revalidatePath("/academic-admin/batches");
