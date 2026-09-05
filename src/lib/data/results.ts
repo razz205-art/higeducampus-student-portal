@@ -179,25 +179,54 @@ export async function getBatchRank(studentId: string): Promise<BatchRankInfo | n
   return { rank, totalStudents, percentile, batchName: student.batch?.name ?? "" };
 }
 
-/** Chronological internal + mock test scores, for the performance trend chart. */
+/**
+ * Merges two score sources into one chronological trend: quiz attempts
+ * taken inside the platform, and externally-graded Test Report entries
+ * (uploaded via the admin's Test Reports feature). Both are normalized to
+ * the same {label, date, percentage} shape so the existing chart component
+ * doesn't need to know which source a point came from. Sorted oldest to
+ * newest, then only the most recent `limit` points are kept — across both
+ * sources combined, not `limit` of each separately.
+ */
 export async function getResultsPerformanceTrend(
   studentId: string,
   limit = 12
 ): Promise<ResultsPerformancePoint[]> {
-  const attempts = await prisma.quizAttempt.findMany({
-    where: { studentId },
-    include: { quiz: { select: { title: true, maxScore: true } } },
-    orderBy: { takenAt: "asc" },
-    take: limit,
-  });
+  const [attempts, testEntries] = await Promise.all([
+    prisma.quizAttempt.findMany({
+      where: { studentId },
+      include: { quiz: { select: { title: true, maxScore: true } } },
+      orderBy: { takenAt: "asc" },
+    }),
+    prisma.testReportEntry.findMany({
+      where: { studentId },
+      include: { testReport: { select: { title: true, createdAt: true } } },
+      orderBy: { testReport: { createdAt: "asc" } },
+    }),
+  ]);
 
-  return attempts.map(
+  const quizPoints = attempts.map(
     (a: { quiz: { title: string; maxScore: number }; score: number; takenAt: Date }) => ({
       label: a.quiz.title,
       date: formatISODate(a.takenAt),
       percentage: a.quiz.maxScore > 0 ? Math.round((a.score / a.quiz.maxScore) * 100) : 0,
+      sortKey: a.takenAt.getTime(),
     })
   );
+
+  const testReportPoints = testEntries.map(
+    (e: { percentage: number; testReport: { title: string; createdAt: Date } }) => ({
+      label: e.testReport.title,
+      date: formatISODate(e.testReport.createdAt),
+      percentage: Math.round(e.percentage),
+      sortKey: e.testReport.createdAt.getTime(),
+    })
+  );
+
+  return [...quizPoints, ...testReportPoints]
+    .sort((a, b) => a.sortKey - b.sortKey)
+    .slice(-limit)
+    .map(({ label, date, percentage }) => ({ label, date, percentage }));
 }
 
 export async function hasAnyCourses(studentId: string): Promise<boolean> {
