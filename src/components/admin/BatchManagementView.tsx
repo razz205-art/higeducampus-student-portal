@@ -1,19 +1,26 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2, Users } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Trash2, Users, BookOpen, X } from "lucide-react";
 import {
   createBatchAction,
   deleteBatchAction,
   getBatchStudentsAction,
 } from "@/lib/actions/admin-batches";
 import type { BatchStudentRow } from "@/lib/actions/admin-batches";
+import {
+  getBatchCourseAccessAction,
+  grantBatchCourseAccessAction,
+  revokeBatchCourseAccessAction,
+} from "@/lib/actions/course-batch-access";
+import type { BatchCourseAccessRow } from "@/lib/actions/course-batch-access";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
 import Badge from "@/components/ui/Badge";
 import type { AdminBatchRow } from "@/lib/data/admin-batches";
+import type { CourseOption } from "@/types/attendance";
 
 function BatchForm({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState("");
@@ -89,7 +96,126 @@ function BatchForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-function StudentsList({ batchId, batchName }: { batchId: string; batchName: string }) {
+function CourseAccessSection({
+  batchId,
+  courses,
+}: {
+  batchId: string;
+  courses: CourseOption[];
+}) {
+  const [isLoadPending, startLoadTransition] = useTransition();
+  const [isGrantPending, startGrantTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [grantError, setGrantError] = useState<string | null>(null);
+  const [rows, setRows] = useState<BatchCourseAccessRow[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+
+  if (!loaded && !isLoadPending && !error) {
+    startLoadTransition(async () => {
+      const result = await getBatchCourseAccessAction(batchId);
+      if (result.success) {
+        setRows(result.rows);
+        setLoaded(true);
+      } else {
+        setError(result.message ?? "Couldn't load course access.");
+      }
+    });
+  }
+
+  const availableCourses = courses.filter((c) => !rows.some((r) => r.courseId === c.id));
+
+  function grant() {
+    const courseId = selectedCourseId || availableCourses[0]?.id;
+    if (!courseId) return;
+    setGrantError(null);
+    startGrantTransition(async () => {
+      const res = await grantBatchCourseAccessAction(batchId, courseId);
+      if (!res.success) {
+        setGrantError(res.message);
+        return;
+      }
+      setLoaded(false);
+      setSelectedCourseId("");
+    });
+  }
+
+  function revoke(courseBatchId: string) {
+    if (!confirm("Revoke this batch's access to that course? Every student currently in the batch loses access to it.")) {
+      return;
+    }
+    startTransition(async () => {
+      await revokeBatchCourseAccessAction(courseBatchId);
+      setLoaded(false);
+    });
+  }
+
+  return (
+    <div className="space-y-2.5">
+      <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-ink-900/40">
+        <BookOpen size={13} aria-hidden="true" />
+        Course access
+      </p>
+
+      {error && <p className="text-sm text-signal-error">{error}</p>}
+
+      {loaded && (
+        <div className="flex flex-wrap gap-2">
+          {rows.length === 0 && (
+            <p className="text-sm text-ink-900/45">
+              This batch doesn&apos;t have standing access to any course yet.
+            </p>
+          )}
+          {rows.map((r) => (
+            <span
+              key={r.id}
+              className="flex items-center gap-1.5 rounded-sm border border-ink-900/10 bg-white py-1 pl-2.5 pr-1.5 text-xs text-ink-900"
+            >
+              {r.courseCode} — {r.courseName}
+              <button
+                onClick={() => revoke(r.id)}
+                disabled={isPending}
+                aria-label={`Revoke access to ${r.courseCode}`}
+                className="rounded-sm p-0.5 text-ink-900/40 hover:bg-signal-error/10 hover:text-signal-error disabled:opacity-50"
+              >
+                <X size={12} aria-hidden="true" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {loaded && availableCourses.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={selectedCourseId}
+            onChange={(e) => setSelectedCourseId(e.target.value)}
+            className="rounded-sm border border-ink-900/15 bg-white px-2.5 py-1.5 text-xs text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+          >
+            {availableCourses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.code} — {c.name}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={grant}
+            disabled={isGrantPending}
+            className="flex items-center gap-1 rounded-sm bg-ink-900 px-2.5 py-1.5 text-xs font-medium text-parchment-50 hover:bg-ink-800 disabled:opacity-50"
+          >
+            <Plus size={12} aria-hidden="true" />
+            {isGrantPending ? "Granting…" : "Grant access"}
+          </button>
+        </div>
+      )}
+
+      {grantError && <p className="text-xs text-signal-error">{grantError}</p>}
+    </div>
+  );
+}
+
+function StudentsTable({ batchId, batchName }: { batchId: string; batchName: string }) {
   const [isPending, startTransition] = useTransition();
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,49 +236,70 @@ function StudentsList({ batchId, batchName }: { batchId: string; batchName: stri
   }
 
   return (
-    <tr>
-      <td colSpan={4} className="bg-ink-900/[0.02] px-5 py-4">
-        {isPending && !loaded && (
-          <p className="text-sm text-ink-900/45">Loading students in {batchName}…</p>
-        )}
-        {error && <p className="text-sm text-signal-error">{error}</p>}
-        {loaded && students.length === 0 && (
-          <p className="text-sm text-ink-900/45">No students enrolled in this batch yet.</p>
-        )}
-        {loaded && students.length > 0 && (
-          <div className="overflow-x-auto rounded-sm border border-ink-900/8 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-ink-900/8 border-b text-xs uppercase tracking-wide text-ink-900/40">
-                  <th className="px-4 py-2 font-medium">Name</th>
-                  <th className="px-4 py-2 font-medium">Email</th>
-                  <th className="px-4 py-2 font-medium">Registration No.</th>
-                  <th className="px-4 py-2 font-medium">Status</th>
+    <div className="space-y-2.5">
+      <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-ink-900/40">
+        <Users size={13} aria-hidden="true" />
+        Students
+      </p>
+      {isPending && !loaded && (
+        <p className="text-sm text-ink-900/45">Loading students in {batchName}…</p>
+      )}
+      {error && <p className="text-sm text-signal-error">{error}</p>}
+      {loaded && students.length === 0 && (
+        <p className="text-sm text-ink-900/45">No students enrolled in this batch yet.</p>
+      )}
+      {loaded && students.length > 0 && (
+        <div className="overflow-x-auto rounded-sm border border-ink-900/8 bg-white">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-ink-900/8 border-b text-xs uppercase tracking-wide text-ink-900/40">
+                <th className="px-4 py-2 font-medium">Name</th>
+                <th className="px-4 py-2 font-medium">Email</th>
+                <th className="px-4 py-2 font-medium">Registration No.</th>
+                <th className="px-4 py-2 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-ink-900/8 divide-y">
+              {students.map((s) => (
+                <tr key={s.id} className={s.isActive ? "" : "opacity-50"}>
+                  <td className="px-4 py-2 font-medium text-ink-900">{s.name ?? "—"}</td>
+                  <td className="px-4 py-2 text-ink-900/70">{s.email}</td>
+                  <td className="px-4 py-2 text-ink-900/70">{s.registrationNumber ?? "—"}</td>
+                  <td className="px-4 py-2">
+                    <Badge variant={s.isActive ? "success" : "neutral"}>
+                      {s.isActive ? "Active" : "Disabled"}
+                    </Badge>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-ink-900/8 divide-y">
-                {students.map((s) => (
-                  <tr key={s.id} className={s.isActive ? "" : "opacity-50"}>
-                    <td className="px-4 py-2 font-medium text-ink-900">{s.name ?? "—"}</td>
-                    <td className="px-4 py-2 text-ink-900/70">{s.email}</td>
-                    <td className="px-4 py-2 text-ink-900/70">{s.registrationNumber ?? "—"}</td>
-                    <td className="px-4 py-2">
-                      <Badge variant={s.isActive ? "success" : "neutral"}>
-                        {s.isActive ? "Active" : "Disabled"}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ExpandedRow({
+  batchId,
+  batchName,
+  courses,
+}: {
+  batchId: string;
+  batchName: string;
+  courses: CourseOption[];
+}) {
+  return (
+    <tr>
+      <td colSpan={4} className="space-y-5 bg-ink-900/[0.02] px-5 py-4">
+        <CourseAccessSection batchId={batchId} courses={courses} />
+        <StudentsTable batchId={batchId} batchName={batchName} />
       </td>
     </tr>
   );
 }
 
-function Row({ batch }: { batch: AdminBatchRow }) {
+function Row({ batch, courses }: { batch: AdminBatchRow; courses: CourseOption[] }) {
   const [isPending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState(false);
 
@@ -196,12 +343,18 @@ function Row({ batch }: { batch: AdminBatchRow }) {
           </button>
         </td>
       </tr>
-      {expanded && <StudentsList batchId={batch.id} batchName={batch.name} />}
+      {expanded && <ExpandedRow batchId={batch.id} batchName={batch.name} courses={courses} />}
     </>
   );
 }
 
-export default function BatchManagementView({ batches }: { batches: AdminBatchRow[] }) {
+export default function BatchManagementView({
+  batches,
+  courses,
+}: {
+  batches: AdminBatchRow[];
+  courses: CourseOption[];
+}) {
   const [showCreate, setShowCreate] = useState(false);
 
   return (
@@ -235,7 +388,7 @@ export default function BatchManagementView({ batches }: { batches: AdminBatchRo
               </thead>
               <tbody className="divide-ink-900/8 divide-y">
                 {batches.map((b) => (
-                  <Row key={b.id} batch={b} />
+                  <Row key={b.id} batch={b} courses={courses} />
                 ))}
               </tbody>
             </table>
