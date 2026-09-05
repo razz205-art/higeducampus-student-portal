@@ -18,7 +18,7 @@ export default function TestReportDetail({ report }: { report: TestReportDetailD
     <div className="space-y-6">
       <div>
         <h1 className="font-serif text-2xl font-semibold text-ink-900">{report.title}</h1>
-        <p className="mt-1 text-sm text-ink-900/50">{report.createdAt}</p>
+        <p className="mt-1 text-sm text-ink-900/50">{report.courseCode} — {report.courseName} · {report.batchName} · {report.createdAt}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
