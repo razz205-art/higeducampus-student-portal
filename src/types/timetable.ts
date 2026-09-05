@@ -9,6 +9,7 @@ export interface TimetableSlotItem {
   batchId: string | null;
   batchName: string | null;
   topic: string | null;
+  specificDate: string | null; // ISO date (YYYY-MM-DD) — if set, a one-time class on this date only
   dayOfWeek: number; // 0 = Sunday .. 6 = Saturday
   startTime: string; // "HH:MM"
   endTime: string; // "HH:MM"
