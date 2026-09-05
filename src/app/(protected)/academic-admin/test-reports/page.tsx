@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth";
 import { routes } from "@/config/site";
 import { getTestReportsForAdmin } from "@/lib/data/test-reports";
+import { getAllCourses, getBatches } from "@/lib/data/attendance";
 import TestReportsView from "@/components/admin/TestReportsView";
 
 export const metadata = { title: "Test Reports" };
@@ -13,7 +14,11 @@ export default async function AdminTestReportsPage() {
     redirect(routes.unauthorized);
   }
 
-  const reports = await getTestReportsForAdmin();
+  const [reports, courses, batches] = await Promise.all([
+    getTestReportsForAdmin(),
+    getAllCourses(),
+    getBatches(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -24,7 +29,7 @@ export default async function AdminTestReportsPage() {
           class dashboard — rankings, pass rate, score distribution — automatically.
         </p>
       </div>
-      <TestReportsView reports={reports} />
+      <TestReportsView reports={reports} courses={courses} batches={batches} />
     </div>
   );
 }
