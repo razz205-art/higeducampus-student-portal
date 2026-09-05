@@ -65,7 +65,8 @@ model User {
   // Results module
   semesterResults        SemesterResult[] @relation("StudentSemesterResults")
   createdSemesterResults SemesterResult[] @relation("SemesterResultCreatedBy")
-
+  createdTestReports TestReport[]      @relation("TestReportCreatedBy")
+  testReportEntries  TestReportEntry[] @relation("StudentTestReportEntries")
   // Certificate module
   certificates Certificate[]
 
@@ -587,6 +588,39 @@ model SemesterCourseResult {
 
   @@index([semesterResultId])
   @@map("semester_course_results")
+}
+model TestReport {
+  id                String   @id @default(cuid())
+  title             String
+  passingPercentage Float    @default(60)
+  createdById       String
+  createdAt         DateTime @default(now())
+
+  createdBy User              @relation("TestReportCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  entries   TestReportEntry[]
+
+  @@index([createdAt])
+  @@map("test_reports")
+}
+
+model TestReportEntry {
+  id           String  @id @default(cuid())
+  testReportId String
+  studentId    String?
+  name         String
+  rank         Int
+  percentage   Float
+  correct      Int?
+  incorrect    Int?
+  timeRaw      String?
+  status       String
+
+  testReport TestReport @relation(fields: [testReportId], references: [id], onDelete: Cascade)
+  student    User?      @relation("StudentTestReportEntries", fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@index([testReportId])
+  @@index([studentId])
+  @@map("test_report_entries")
 }
 
 // Certificate module — issued on demand once a student reaches 100%
