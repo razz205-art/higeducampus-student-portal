@@ -12,6 +12,7 @@ function toItem(s: {
   id: string;
   courseId: string;
   batchId: string | null;
+  topic: string | null;
   dayOfWeek: number;
   startTime: string;
   endTime: string;
@@ -29,6 +30,7 @@ function toItem(s: {
     facultyName: s.course.faculty.name ?? s.course.faculty.email,
     batchId: s.batchId,
     batchName: s.batch?.name ?? null,
+    topic: s.topic,
     dayOfWeek: s.dayOfWeek,
     startTime: s.startTime,
     endTime: s.endTime,
