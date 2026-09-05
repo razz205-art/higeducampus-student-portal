@@ -194,6 +194,19 @@ model Enrollment {
   @@index([courseId])
   @@map("enrollments")
 }
+model CourseBatch {
+  id        String   @id @default(cuid())
+  courseId  String
+  batchId   String
+  createdAt DateTime @default(now())
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  batch  Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, batchId])
+  @@index([batchId])
+  @@map("course_batches")
+}
 
 enum AttendanceStatus {
   PRESENT
