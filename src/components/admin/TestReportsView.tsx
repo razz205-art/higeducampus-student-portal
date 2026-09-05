@@ -104,10 +104,11 @@ function UploadForm({ onDone }: { onDone: () => void }) {
 
       <p className="flex items-start gap-1.5 text-xs text-ink-900/50">
         <HelpCircle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-        Needs "Name" and "Percentage" columns (.csv or .xlsx). "Rank", "Correct", "Incorrect", and
-        "Time" columns are used if present — rank is otherwise worked out from percentage. Every
-        row in the file is published as part of the report, even ones that don't match a student
-        account, so class-wide totals stay accurate.
+              Needs &quot;Name&quot; and &quot;Percentage&quot; columns (.csv or .xlsx). &quot;Rank&quot;,
+        &quot;Correct&quot;, &quot;Incorrect&quot;, and &quot;Time&quot; columns are used if present
+        — rank is otherwise worked out from percentage. Every row in the file is published as
+        part of the report, even ones that don&apos;t match a student account, so class-wide
+        totals stay accurate.
       </p>
 
       <form onSubmit={handlePreview} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
