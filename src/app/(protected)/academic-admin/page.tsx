@@ -121,7 +121,7 @@ export default async function AdminDashboardPage() {
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-serif text-lg font-semibold text-ink-900">Manage</h2>
-          
+          <a
             href="/academic-admin/analytics"
             className="text-xs font-medium text-gold-600 hover:underline"
           >
