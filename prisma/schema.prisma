@@ -607,7 +607,7 @@ model TestReport {
   @@index([courseId])
   @@index([batchId])
   @@map("test_reports")
-}
+
 }
 
 model TestReportEntry {
