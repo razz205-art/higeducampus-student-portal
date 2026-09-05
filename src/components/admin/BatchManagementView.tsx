@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2, Users, BookOpen, X } from "lucide-react";
+import { ChevronRight, Plus, Trash2, Users, BookOpen, X } from "lucide-react";
 import {
   createBatchAction,
   deleteBatchAction,
@@ -344,30 +344,11 @@ function StudentsTable({ batchId, batchName }: { batchId: string; batchName: str
   );
 }
 
-function ExpandedRow({
-  batchId,
-  batchName,
-  courses,
-}: {
-  batchId: string;
-  batchName: string;
-  courses: CourseOption[];
-}) {
-  return (
-    <tr>
-      <td colSpan={4} className="space-y-5 bg-ink-900/[0.02] px-5 py-4">
-        <CourseAccessSection batchId={batchId} courses={courses} />
-        <StudentsTable batchId={batchId} batchName={batchName} />
-      </td>
-    </tr>
-  );
-}
-
-function Row({ batch, courses }: { batch: AdminBatchRow; courses: CourseOption[] }) {
+function BatchCard({ batch, courses }: { batch: AdminBatchRow; courses: CourseOption[] }) {
   const [isPending, startTransition] = useTransition();
-  const [expanded, setExpanded] = useState(false);
 
   function remove(e: React.MouseEvent) {
+    e.preventDefault();
     e.stopPropagation();
     if (!confirm(`Delete batch "${batch.name}"?`)) return;
     startTransition(() => {
@@ -376,28 +357,21 @@ function Row({ batch, courses }: { batch: AdminBatchRow; courses: CourseOption[]
   }
 
   return (
-    <>
-      <tr className="hover:bg-ink-900/[0.02]">
-        <td className="px-5 py-3 font-medium text-ink-900">
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            aria-expanded={expanded}
-            className="flex w-full items-center gap-1.5 text-left"
-          >
-            {expanded ? (
-              <ChevronDown size={14} className="text-ink-900/40" aria-hidden="true" />
-            ) : (
-              <ChevronRight size={14} className="text-ink-900/40" aria-hidden="true" />
-            )}
-            {batch.name}
-          </button>
-        </td>
-        <td className="px-5 py-3 text-ink-900/70">
+    <details className="group border-ink-900/8 border-b">
+      <summary className="grid cursor-pointer list-none grid-cols-[1fr_140px_100px_44px] items-center gap-2 px-5 py-3 text-sm hover:bg-ink-900/[0.02] [&::-webkit-details-marker]:hidden">
+        <span className="flex items-center gap-1.5 font-medium text-ink-900">
+          <ChevronRight
+            size={14}
+            className="shrink-0 text-ink-900/40 transition-transform duration-150 group-open:rotate-90"
+            aria-hidden="true"
+          />
+          {batch.name}
+        </span>
+        <span className="text-ink-900/70">
           {batch.startYear} – {batch.endYear}
-        </td>
-        <td className="px-5 py-3 text-ink-900/70">{batch.studentCount}</td>
-        <td className="px-5 py-3 text-right">
+        </span>
+        <span className="text-ink-900/70">{batch.studentCount}</span>
+        <span className="flex justify-end">
           <button
             type="button"
             onClick={remove}
@@ -407,10 +381,13 @@ function Row({ batch, courses }: { batch: AdminBatchRow; courses: CourseOption[]
           >
             <Trash2 size={15} aria-hidden="true" />
           </button>
-        </td>
-      </tr>
-      {expanded && <ExpandedRow batchId={batch.id} batchName={batch.name} courses={courses} />}
-    </>
+        </span>
+      </summary>
+      <div className="space-y-5 bg-ink-900/[0.02] px-5 py-4">
+        <CourseAccessSection batchId={batch.id} courses={courses} />
+        <StudentsTable batchId={batch.id} batchName={batch.name} />
+      </div>
+    </details>
   );
 }
 
@@ -443,21 +420,17 @@ export default function BatchManagementView({
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-ink-900/8 border-b text-xs uppercase tracking-wide text-ink-900/40">
-                  <th className="px-5 py-3 font-medium">Batch</th>
-                  <th className="px-5 py-3 font-medium">Years</th>
-                  <th className="px-5 py-3 font-medium">Students</th>
-                  <th className="px-5 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-ink-900/8 divide-y">
-                {batches.map((b) => (
-                  <Row key={b.id} batch={b} courses={courses} />
-                ))}
-              </tbody>
-            </table>
+            <div className="min-w-[520px]">
+              <div className="border-ink-900/8 grid grid-cols-[1fr_140px_100px_44px] gap-2 border-b px-5 py-3 text-xs font-medium uppercase tracking-wide text-ink-900/40">
+                <span>Batch</span>
+                <span>Years</span>
+                <span>Students</span>
+                <span />
+              </div>
+              {batches.map((b) => (
+                <BatchCard key={b.id} batch={b} courses={courses} />
+              ))}
+            </div>
           </div>
         )}
       </DashboardCard>
