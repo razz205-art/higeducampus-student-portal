@@ -171,6 +171,7 @@ model Course {
   assignments Assignment[]
   timetableSlots TimetableSlot[]
 testReports    TestReport[]
+courseBatches CourseBatch[]
   semesterCourseResults SemesterCourseResult[]
   certificates          Certificate[]
   materials             StudyMaterial[]
@@ -261,6 +262,7 @@ model Batch {
   liveClassSessions LiveClassSession[]
   timetableSlots    TimetableSlot[]
 testReports       TestReport[]
+courseBatches CourseBatch[]
   notifications     Notification[]
 
   @@map("batches")
