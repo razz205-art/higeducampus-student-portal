@@ -105,7 +105,7 @@ export async function getBatchStudentsAction(batchId: string): Promise<BatchStud
   }
 
   const students = await prisma.user.findMany({
-    where: { batchId, role: "STUDENT" },
+    where: { studentBatches: { some: { batchId } }, role: "STUDENT" },
     select: {
       id: true,
       name: true,
