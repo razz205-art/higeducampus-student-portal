@@ -34,6 +34,7 @@ export default function TimetableSlotForm({
   const isEditing = !!initial;
   const [courseId, setCourseId] = useState(initial?.courseId ?? courses[0]?.id ?? "");
   const [batchId, setBatchId] = useState(initial?.batchId ?? "");
+  const [topic, setTopic] = useState(initial?.topic ?? "");
   const [dayOfWeek, setDayOfWeek] = useState(initial?.dayOfWeek ?? 1);
   const [startTime, setStartTime] = useState(initial?.startTime ?? "09:00");
   const [endTime, setEndTime] = useState(initial?.endTime ?? "10:00");
@@ -49,6 +50,7 @@ export default function TimetableSlotForm({
     const payload = {
       courseId,
       batchId: batchId || undefined,
+      topic: topic || undefined,
       dayOfWeek,
       startTime,
       endTime,
@@ -123,6 +125,16 @@ export default function TimetableSlotForm({
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="sm:col-span-2">
+          <Input
+            label="Topic (optional)"
+            name="topic"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder="e.g. Chapter 4: Cognitive Development"
+          />
         </div>
 
         <div>
