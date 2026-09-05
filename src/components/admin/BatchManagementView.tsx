@@ -22,12 +22,19 @@ import Badge from "@/components/ui/Badge";
 import type { AdminBatchRow } from "@/lib/data/admin-batches";
 import type { CourseOption } from "@/types/attendance";
 
-function BatchForm({ onDone }: { onDone: () => void }) {
+function BatchForm({ onDone, courses }: { onDone: () => void; courses: CourseOption[] }) {
   const [name, setName] = useState("");
   const [startYear, setStartYear] = useState("");
   const [endYear, setEndYear] = useState("");
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  function toggleCourse(courseId: string) {
+    setSelectedCourseIds((prev) =>
+      prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId]
+    );
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,10 +45,31 @@ function BatchForm({ onDone }: { onDone: () => void }) {
         startYear: Number(startYear),
         endYear: Number(endYear),
       });
-      setResult(res);
-      if (res.success) {
-        onDone();
+
+      if (!res.success || !res.batchId) {
+        setResult(res);
+        return;
       }
+
+      if (selectedCourseIds.length === 0) {
+        setResult(res);
+        onDone();
+        return;
+      }
+
+      const grantResults = await Promise.all(
+        selectedCourseIds.map((courseId) => grantBatchCourseAccessAction(res.batchId!, courseId))
+      );
+      const failed = grantResults.filter((g) => !g.success).length;
+
+      setResult({
+        success: true,
+        message:
+          failed === 0
+            ? `Batch created with access to ${selectedCourseIds.length} course${selectedCourseIds.length === 1 ? "" : "s"}.`
+            : `Batch created, but ${failed} course${failed === 1 ? "" : "s"} couldn't be granted. You can retry from the batch row.`,
+      });
+      onDone();
     });
   }
 
@@ -89,6 +117,42 @@ function BatchForm({ onDone }: { onDone: () => void }) {
           required
         />
       </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-ink-900/40">
+          Course access (optional)
+        </p>
+        {courses.length === 0 ? (
+          <p className="text-sm text-ink-900/45">
+            No courses exist yet — you can grant access later from the batch row.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {courses.map((c) => {
+              const checked = selectedCourseIds.includes(c.id);
+              return (
+                <label
+                  key={c.id}
+                  className={`flex cursor-pointer items-center gap-1.5 rounded-sm border px-2.5 py-1.5 text-xs ${
+                    checked
+                      ? "border-gold-500 bg-gold-500/10 text-ink-900"
+                      : "border-ink-900/15 bg-white text-ink-900/70 hover:border-ink-900/30"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleCourse(c.id)}
+                    className="h-3.5 w-3.5 accent-gold-500"
+                  />
+                  {c.code} — {c.name}
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       <Button type="submit" isLoading={isPending} className="sm:w-auto sm:px-8">
         Add batch
       </Button>
@@ -313,20 +377,21 @@ function Row({ batch, courses }: { batch: AdminBatchRow; courses: CourseOption[]
 
   return (
     <>
-      <tr
-        onClick={() => setExpanded((v) => !v)}
-        className="cursor-pointer hover:bg-ink-900/[0.02]"
-        aria-expanded={expanded}
-      >
+      <tr className="hover:bg-ink-900/[0.02]">
         <td className="px-5 py-3 font-medium text-ink-900">
-          <span className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            className="flex w-full items-center gap-1.5 text-left"
+          >
             {expanded ? (
               <ChevronDown size={14} className="text-ink-900/40" aria-hidden="true" />
             ) : (
               <ChevronRight size={14} className="text-ink-900/40" aria-hidden="true" />
             )}
             {batch.name}
-          </span>
+          </button>
         </td>
         <td className="px-5 py-3 text-ink-900/70">
           {batch.startYear} – {batch.endYear}
@@ -334,6 +399,7 @@ function Row({ batch, courses }: { batch: AdminBatchRow; courses: CourseOption[]
         <td className="px-5 py-3 text-ink-900/70">{batch.studentCount}</td>
         <td className="px-5 py-3 text-right">
           <button
+            type="button"
             onClick={remove}
             disabled={isPending}
             aria-label="Delete"
@@ -368,7 +434,7 @@ export default function BatchManagementView({
           Add batch
         </button>
       )}
-      {showCreate && <BatchForm onDone={() => setShowCreate(false)} />}
+      {showCreate && <BatchForm onDone={() => setShowCreate(false)} courses={courses} />}
 
       <DashboardCard title="Batches" icon={Users} bodyClassName="p-0">
         {batches.length === 0 ? (
