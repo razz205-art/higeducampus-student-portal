@@ -154,3 +154,78 @@ export default function TimetableSlotForm({
           <Input
             label="Date (optional — for a one-time class)"
             name="specificDate"
+            type="date"
+            value={specificDate}
+            onChange={(e) => handleDateChange(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-ink-900/40">
+            Leave blank for a class that repeats every week. Fill in a date for a single one-off
+            class instead.
+          </p>
+        </div>
+
+        <div>
+          <label htmlFor="dayOfWeek" className="mb-1.5 block text-sm font-medium text-ink-800">
+            Day of week{" "}
+            {specificDate && (
+              <span className="font-normal text-ink-900/40">(set automatically from date)</span>
+            )}
+          </label>
+          <select
+            id="dayOfWeek"
+            value={dayOfWeek}
+            onChange={(e) => setDayOfWeek(Number(e.target.value))}
+            disabled={!!specificDate}
+            className="w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500 disabled:bg-ink-900/5 disabled:text-ink-900/50"
+          >
+            {DAY_OPTIONS.map((d) => (
+              <option key={d.value} value={d.value}>
+                {d.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <Input
+          label="Location (optional)"
+          name="location"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="e.g. Room 118"
+        />
+
+        <Input
+          label="Start time"
+          name="startTime"
+          type="time"
+          value={startTime}
+          onChange={(e) => setStartTime(e.target.value)}
+          required
+        />
+        <Input
+          label="End time"
+          name="endTime"
+          type="time"
+          value={endTime}
+          onChange={(e) => setEndTime(e.target.value)}
+          required
+        />
+
+        <div className="sm:col-span-2">
+          <Input
+            label="Meeting link (optional)"
+            name="meetingLink"
+            type="url"
+            value={meetingLink}
+            onChange={(e) => setMeetingLink(e.target.value)}
+            placeholder="https://zoom.us/j/…"
+          />
+        </div>
+      </div>
+
+      <Button type="submit" isLoading={isPending} className="sm:w-auto sm:px-8">
+        {isEditing ? "Save changes" : "Add to timetable"}
+      </Button>
+    </form>
+  );
+}
