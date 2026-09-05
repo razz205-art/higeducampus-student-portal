@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   FileClock,
   SlidersHorizontal,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Role } from "@prisma/client";
 import { ROLE_HOME } from "@/lib/rbac/permissions";
@@ -66,6 +67,7 @@ export function getNavSections(role: Role): NavSection[] {
             { label: "Attendance", href: "/student/attendance", icon: CalendarCheck2 },
             { label: "Progress", href: "/student/progress", icon: TrendingUp },
             { label: "Results", href: "/student/results", icon: Award },
+            { label: "Test Reports", href: "/student/test-reports", icon: FileSpreadsheet },
             { label: "Certificates", href: "/student/certificates", icon: BadgeCheck },
             { label: "Exam Countdown", href: "/student/exams", icon: Timer },
             { label: "View Course", href: "/student/materials", icon: Library },
@@ -120,6 +122,7 @@ export function getNavSections(role: Role): NavSection[] {
             { label: "Assignments", href: "/academic-admin/assignments", icon: ClipboardList },
             { label: "Timetable", href: "/academic-admin/timetable", icon: CalendarDays },
             { label: "Results", href: "/academic-admin/results", icon: BarChart3 },
+            { label: "Test Reports", href: "/academic-admin/test-reports", icon: FileSpreadsheet },
             { label: "Study Materials", href: "/academic-admin/materials", icon: Library },
             { label: "Certificates", href: "/academic-admin/certificates", icon: Award },
             { label: "Exam Countdown", href: "/academic-admin/exams", icon: Timer },
@@ -150,6 +153,7 @@ export function getNavSections(role: Role): NavSection[] {
             { label: "Assignments", href: "/academic-admin/assignments", icon: ClipboardList },
             { label: "Timetable", href: "/academic-admin/timetable", icon: CalendarDays },
             { label: "Results", href: "/academic-admin/results", icon: BarChart3 },
+            { label: "Test Reports", href: "/academic-admin/test-reports", icon: FileSpreadsheet },
             { label: "Study Materials", href: "/academic-admin/materials", icon: Library },
             { label: "Certificates", href: "/academic-admin/certificates", icon: Award },
             { label: "Exam Countdown", href: "/academic-admin/exams", icon: Timer },
