@@ -8,7 +8,7 @@ import {
 } from "@/lib/actions/timetable";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import Badge from "@/components/ui/Badge";
-import { WEEKDAY_LONG } from "@/lib/utils/date";
+import { WEEKDAY_LONG, parseISODate, formatDisplayDate } from "@/lib/utils/date";
 import type { TimetableSlotItem } from "@/types/timetable";
 
 function Row({ slot, onEdit }: { slot: TimetableSlotItem; onEdit: () => void }) {
@@ -44,7 +44,14 @@ function Row({ slot, onEdit }: { slot: TimetableSlotItem; onEdit: () => void }) 
         )}
       </td>
       <td className="px-5 py-3 text-ink-900/70">
-        <p>{WEEKDAY_LONG[slot.dayOfWeek]}</p>
+        <p className="flex items-center gap-1.5">
+          {slot.specificDate ? formatDisplayDate(parseISODate(slot.specificDate)) : WEEKDAY_LONG[slot.dayOfWeek]}
+          {slot.specificDate && (
+            <span className="rounded-sm bg-ink-900/5 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-900/50">
+              One-time
+            </span>
+          )}
+        </p>
         <p className="flex items-center gap-1 text-xs text-ink-900/45">
           <Clock size={11} aria-hidden="true" />
           {slot.startTime} – {slot.endTime}
@@ -53,7 +60,7 @@ function Row({ slot, onEdit }: { slot: TimetableSlotItem; onEdit: () => void }) 
       <td className="px-5 py-3 text-ink-900/70">
         {slot.location ?? "—"}
         {slot.meetingLink && (
-          <a
+          
             href={slot.meetingLink}
             target="_blank"
             rel="noopener noreferrer"
