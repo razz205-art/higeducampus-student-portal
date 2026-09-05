@@ -37,6 +37,11 @@ function Row({ slot, onEdit }: { slot: TimetableSlotItem; onEdit: () => void }) 
           {slot.facultyName}
           {slot.batchName ? ` · ${slot.batchName}` : ""}
         </p>
+        {slot.topic && (
+          <p className="mt-1 inline-block rounded-sm bg-gold-500/15 px-1.5 py-0.5 text-xs font-medium text-gold-700">
+            {slot.topic}
+          </p>
+        )}
       </td>
       <td className="px-5 py-3 text-ink-900/70">
         <p>{WEEKDAY_LONG[slot.dayOfWeek]}</p>
@@ -48,7 +53,7 @@ function Row({ slot, onEdit }: { slot: TimetableSlotItem; onEdit: () => void }) 
       <td className="px-5 py-3 text-ink-900/70">
         {slot.location ?? "—"}
         {slot.meetingLink && (
-          <a
+          
             href={slot.meetingLink}
             target="_blank"
             rel="noopener noreferrer"
