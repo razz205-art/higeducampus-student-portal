@@ -72,7 +72,13 @@ async function parseSpreadsheet(file: File): Promise<string[][]> {
   }
 
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
+  // exceljs's bundled type definitions expect a Buffer shape that doesn't
+  // structurally match the Buffer type currently active in this project
+  // (a strict-typing mismatch only, not a real bug — the bytes passed in
+  // are a completely normal Buffer at runtime). `as any` sidesteps the
+  // type check for just this one call without weakening anything else.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await workbook.xlsx.load(buffer as any);
   const worksheet = workbook.worksheets[0];
   if (!worksheet) return [];
 
