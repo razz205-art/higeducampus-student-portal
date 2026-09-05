@@ -60,7 +60,7 @@ function Row({ slot, onEdit }: { slot: TimetableSlotItem; onEdit: () => void }) 
       <td className="px-5 py-3 text-ink-900/70">
         {slot.location ?? "—"}
         {slot.meetingLink && (
-          
+          <a
             href={slot.meetingLink}
             target="_blank"
             rel="noopener noreferrer"
