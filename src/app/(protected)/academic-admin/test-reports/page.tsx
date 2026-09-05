@@ -20,7 +20,7 @@ export default async function AdminTestReportsPage() {
       <div>
         <h1 className="font-serif text-xl font-extrabold text-ink-900">Test Reports</h1>
         <p className="mt-1 text-sm text-ink-900/50">
-          Upload a weekly test, quiz, or mock exam's results as a spreadsheet and get a full
+          Upload a weekly test, quiz, or mock exam&apos;s results as a spreadsheet and get a full
           class dashboard — rankings, pass rate, score distribution — automatically.
         </p>
       </div>
