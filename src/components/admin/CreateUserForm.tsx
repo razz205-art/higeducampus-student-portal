@@ -20,12 +20,18 @@ export default function CreateUserForm({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [batchId, setBatchId] = useState("");
+  const [batchIds, setBatchIds] = useState<string[]>([]);
   const [courseIds, setCourseIds] = useState<string[]>([]);
   const [sendEmail, setSendEmail] = useState(true);
   const [customMessage, setCustomMessage] = useState("");
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  function toggleBatch(batchId: string) {
+    setBatchIds((prev) =>
+      prev.includes(batchId) ? prev.filter((id) => id !== batchId) : [...prev, batchId]
+    );
+  }
 
   function toggleCourse(courseId: string) {
     setCourseIds((prev) =>
@@ -42,7 +48,7 @@ export default function CreateUserForm({
         email,
         password,
         role,
-        batchId: role === "STUDENT" ? batchId || undefined : undefined,
+        batchIds: role === "STUDENT" ? batchIds : undefined,
         courseIds: role === "STUDENT" ? courseIds : undefined,
         sendEmail,
         customMessage: customMessage || undefined,
@@ -52,7 +58,7 @@ export default function CreateUserForm({
         setName("");
         setEmail("");
         setPassword("");
-        setBatchId("");
+        setBatchIds([]);
         setCourseIds([]);
         setCustomMessage("");
       }
@@ -95,27 +101,44 @@ export default function CreateUserForm({
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        {role === "STUDENT" && (
-          <div>
-            <label htmlFor="batchId" className="mb-1.5 block text-sm font-medium text-ink-800">
-              Batch <span className="font-normal text-ink-900/40">(optional)</span>
-            </label>
-            <select
-              id="batchId"
-              value={batchId}
-              onChange={(e) => setBatchId(e.target.value)}
-              className="w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
-            >
-              <option value="">No batch</option>
-              {batches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
+
+      {role === "STUDENT" && (
+        <div>
+          <p className="mb-1.5 text-sm font-medium text-ink-800">
+            Batches <span className="font-normal text-ink-900/40">(optional — can select more than one)</span>
+          </p>
+          {batches.length === 0 ? (
+            <p className="rounded-sm border border-ink-900/15 bg-white px-3 py-2.5 text-sm text-ink-900/45">
+              No batches yet — create one under Manage &rarr; Batches first.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {batches.map((b) => {
+                const checked = batchIds.includes(b.id);
+                return (
+                  <label
+                    key={b.id}
+                    className={`flex cursor-pointer items-center gap-1.5 rounded-sm border px-2.5 py-1.5 text-xs ${
+                      checked
+                        ? "border-gold-500 bg-gold-500/10 text-ink-900"
+                        : "border-ink-900/15 bg-white text-ink-900/70 hover:border-ink-900/30"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleBatch(b.id)}
+                      className="h-3.5 w-3.5 accent-gold-500"
+                    />
+                    {b.name}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {role === "STUDENT" && (
         <div>
