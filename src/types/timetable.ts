@@ -8,6 +8,7 @@ export interface TimetableSlotItem {
   facultyName: string;
   batchId: string | null;
   batchName: string | null;
+  topic: string | null;
   dayOfWeek: number; // 0 = Sunday .. 6 = Saturday
   startTime: string; // "HH:MM"
   endTime: string; // "HH:MM"
