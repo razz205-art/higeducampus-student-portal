@@ -35,6 +35,7 @@ export default function TimetableSlotForm({
   const [courseId, setCourseId] = useState(initial?.courseId ?? courses[0]?.id ?? "");
   const [batchId, setBatchId] = useState(initial?.batchId ?? "");
   const [topic, setTopic] = useState(initial?.topic ?? "");
+  const [specificDate, setSpecificDate] = useState(initial?.specificDate ?? "");
   const [dayOfWeek, setDayOfWeek] = useState(initial?.dayOfWeek ?? 1);
   const [startTime, setStartTime] = useState(initial?.startTime ?? "09:00");
   const [endTime, setEndTime] = useState(initial?.endTime ?? "10:00");
@@ -42,6 +43,17 @@ export default function TimetableSlotForm({
   const [meetingLink, setMeetingLink] = useState(initial?.meetingLink ?? "");
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  function handleDateChange(value: string) {
+    setSpecificDate(value);
+    if (value) {
+      // Keep dayOfWeek consistent with the chosen date, purely for display
+      // in the admin table — the actual scheduling logic uses specificDate
+      // directly and ignores dayOfWeek whenever specificDate is set.
+      const parsed = new Date(`${value}T00:00:00Z`);
+      if (!Number.isNaN(parsed.getTime())) setDayOfWeek(parsed.getUTCDay());
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,6 +63,7 @@ export default function TimetableSlotForm({
       courseId,
       batchId: batchId || undefined,
       topic: topic || undefined,
+      specificDate: specificDate || undefined,
       dayOfWeek,
       startTime,
       endTime,
@@ -138,63 +151,6 @@ export default function TimetableSlotForm({
         </div>
 
         <div>
-          <label htmlFor="dayOfWeek" className="mb-1.5 block text-sm font-medium text-ink-800">
-            Day of week
-          </label>
-          <select
-            id="dayOfWeek"
-            value={dayOfWeek}
-            onChange={(e) => setDayOfWeek(Number(e.target.value))}
-            className="w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
-          >
-            {DAY_OPTIONS.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <Input
-          label="Location (optional)"
-          name="location"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="e.g. Room 118"
-        />
-
-        <Input
-          label="Start time"
-          name="startTime"
-          type="time"
-          value={startTime}
-          onChange={(e) => setStartTime(e.target.value)}
-          required
-        />
-        <Input
-          label="End time"
-          name="endTime"
-          type="time"
-          value={endTime}
-          onChange={(e) => setEndTime(e.target.value)}
-          required
-        />
-
-        <div className="sm:col-span-2">
           <Input
-            label="Meeting link (optional)"
-            name="meetingLink"
-            type="url"
-            value={meetingLink}
-            onChange={(e) => setMeetingLink(e.target.value)}
-            placeholder="https://zoom.us/j/…"
-          />
-        </div>
-      </div>
-
-      <Button type="submit" isLoading={isPending} className="sm:w-auto sm:px-8">
-        {isEditing ? "Save changes" : "Add to timetable"}
-      </Button>
-    </form>
-  );
-}
+            label="Date (optional — for a one-time class)"
+            name="specificDate"
