@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/security/password";
 import { sendWelcomeCredentialsEmail } from "@/lib/email/resend";
 import { parseCsv } from "@/lib/utils/csv";
+import { enrollStudentInBatchCourses } from "@/lib/actions/course-batch-access";
 import { Role } from "@prisma/client";
 
 export interface ActionResult {
@@ -71,6 +72,9 @@ export async function createUserAction(
     },
   });
 
+  if (role === "STUDENT" && batchId) {
+    await enrollStudentInBatchCourses(user.id, batchId);
+  }
   if (role === "STUDENT" && courseIds && courseIds.length > 0) {
     await prisma.enrollment.createMany({
       data: courseIds.map((courseId) => ({ studentId: user.id, courseId })),
@@ -251,7 +255,7 @@ async function processBulkStudentRows(
     const rawPassword = parsed.data.password ?? generateTempPassword();
     const passwordHash = await hashPassword(rawPassword);
 
-    await prisma.user.create({
+    const newStudent = await prisma.user.create({
       data: {
         name,
         email,
@@ -261,6 +265,10 @@ async function processBulkStudentRows(
         emailVerified: new Date(),
       },
     });
+
+    if (batchId) {
+      await enrollStudentInBatchCourses(newStudent.id, batchId);
+    }
 
     results.push({
       row: rowNum,
