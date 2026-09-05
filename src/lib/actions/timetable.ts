@@ -20,6 +20,7 @@ const slotSchema = z
   .object({
     courseId: z.string().min(1, "Choose a course."),
     batchId: z.string().min(1).optional(),
+    topic: z.string().trim().max(150, "Keep the topic under 150 characters.").optional(),
     dayOfWeek: z.coerce.number().int().min(0).max(6),
     startTime: z.string().regex(timeRegex, "Use 24-hour HH:MM format."),
     endTime: z.string().regex(timeRegex, "Use 24-hour HH:MM format."),
@@ -44,12 +45,14 @@ export async function createTimetableSlotAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { courseId, batchId, dayOfWeek, startTime, endTime, location, meetingLink } = parsed.data;
+  const { courseId, batchId, topic, dayOfWeek, startTime, endTime, location, meetingLink } =
+    parsed.data;
 
   await prisma.timetableSlot.create({
     data: {
       courseId,
       batchId: batchId || null,
+      topic: topic || null,
       dayOfWeek,
       startTime,
       endTime,
@@ -81,7 +84,7 @@ export async function updateTimetableSlotAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { slotId, courseId, batchId, dayOfWeek, startTime, endTime, location, meetingLink } =
+  const { slotId, courseId, batchId, topic, dayOfWeek, startTime, endTime, location, meetingLink } =
     parsed.data;
 
   try {
@@ -90,6 +93,7 @@ export async function updateTimetableSlotAction(
       data: {
         courseId,
         batchId: batchId || null,
+        topic: topic || null,
         dayOfWeek,
         startTime,
         endTime,
