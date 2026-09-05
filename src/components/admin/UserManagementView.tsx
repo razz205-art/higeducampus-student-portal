@@ -45,7 +45,7 @@ export default function UserManagementView({
       )}
       {mode === "single" && <CreateUserForm role={role} batches={batches} courses={courses} />}
       {mode === "bulk" && <BulkAddStudentsForm onDone={() => setMode("none")} />}
-      <UserManagementTable users={users} role={role} />
+      <UserManagementTable users={users} role={role} batches={batches} />
     </div>
   );
 }
