@@ -15,12 +15,16 @@ function isAdmin(role: string | undefined): boolean {
 }
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 const slotSchema = z
   .object({
     courseId: z.string().min(1, "Choose a course."),
     batchId: z.string().min(1).optional(),
     topic: z.string().trim().max(150, "Keep the topic under 150 characters.").optional(),
+    specificDate: z
+      .union([z.string().regex(dateRegex, "Use YYYY-MM-DD format."), z.literal("")])
+      .optional(),
     dayOfWeek: z.coerce.number().int().min(0).max(6),
     startTime: z.string().regex(timeRegex, "Use 24-hour HH:MM format."),
     endTime: z.string().regex(timeRegex, "Use 24-hour HH:MM format."),
@@ -45,7 +49,7 @@ export async function createTimetableSlotAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { courseId, batchId, topic, dayOfWeek, startTime, endTime, location, meetingLink } =
+  const { courseId, batchId, topic, specificDate, dayOfWeek, startTime, endTime, location, meetingLink } =
     parsed.data;
 
   await prisma.timetableSlot.create({
@@ -53,6 +57,7 @@ export async function createTimetableSlotAction(
       courseId,
       batchId: batchId || null,
       topic: topic || null,
+      specificDate: specificDate ? new Date(specificDate) : null,
       dayOfWeek,
       startTime,
       endTime,
@@ -84,8 +89,18 @@ export async function updateTimetableSlotAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { slotId, courseId, batchId, topic, dayOfWeek, startTime, endTime, location, meetingLink } =
-    parsed.data;
+  const {
+    slotId,
+    courseId,
+    batchId,
+    topic,
+    specificDate,
+    dayOfWeek,
+    startTime,
+    endTime,
+    location,
+    meetingLink,
+  } = parsed.data;
 
   try {
     await prisma.timetableSlot.update({
@@ -94,6 +109,7 @@ export async function updateTimetableSlotAction(
         courseId,
         batchId: batchId || null,
         topic: topic || null,
+        specificDate: specificDate ? new Date(specificDate) : null,
         dayOfWeek,
         startTime,
         endTime,
