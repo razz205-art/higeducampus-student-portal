@@ -36,7 +36,11 @@ function toEntryRow(e: {
 
 export async function getTestReportsForAdmin(): Promise<TestReportSummary[]> {
   const reports = await prisma.testReport.findMany({
-    include: { entries: { select: { percentage: true, status: true } } },
+    include: {
+      entries: { select: { percentage: true, status: true } },
+      course: { select: { code: true, name: true } },
+      batch: { select: { name: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -54,6 +58,11 @@ export async function getTestReportsForAdmin(): Promise<TestReportSummary[]> {
       title: r.title,
       createdAt: formatISODate(r.createdAt),
       passingPercentage: r.passingPercentage,
+      courseId: r.courseId,
+      courseCode: r.course.code,
+      courseName: r.course.name,
+      batchId: r.batchId,
+      batchName: r.batch.name,
       totalStudents: total,
       averagePercentage: Math.round(avg * 10) / 10,
       passRate: total > 0 ? Math.round((passCount / total) * 1000) / 10 : 0,
@@ -82,6 +91,8 @@ export async function getTestReportDetail(id: string): Promise<TestReportDetail 
         include: { student: { select: { name: true, email: true } } },
         orderBy: { rank: "asc" },
       },
+      course: { select: { code: true, name: true } },
+      batch: { select: { name: true } },
     },
   });
   if (!report) return null;
@@ -108,6 +119,11 @@ export async function getTestReportDetail(id: string): Promise<TestReportDetail 
     title: report.title,
     createdAt: formatISODate(report.createdAt),
     passingPercentage: report.passingPercentage,
+    courseId: report.courseId,
+    courseCode: report.course.code,
+    courseName: report.course.name,
+    batchId: report.batchId,
+    batchName: report.batch.name,
     totalStudents: total,
     averagePercentage: Math.round(avg * 10) / 10,
     passRate: total > 0 ? Math.round((passCount / total) * 1000) / 10 : 0,
