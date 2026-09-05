@@ -135,7 +135,15 @@ export async function previewTestReportUploadAction(
   const file = formData.get("file");
   const passingPercentageRaw = formData.get("passingPercentage");
   const passingPercentage = Number(passingPercentageRaw);
+  const courseId = String(formData.get("courseId") ?? "");
+  const batchId = String(formData.get("batchId") ?? "");
 
+  if (!courseId) {
+    return { success: false, message: "Choose a course.", rows: [] };
+  }
+  if (!batchId) {
+    return { success: false, message: "Choose a batch.", rows: [] };
+  }
   if (!(file instanceof File) || file.size === 0) {
     return { success: false, message: "Choose a file to upload.", rows: [] };
   }
@@ -174,7 +182,11 @@ export async function previewTestReportUploadAction(
   }
 
   const students = await prisma.user.findMany({
-    where: { role: "STUDENT" },
+    where: {
+      role: "STUDENT",
+      batchId,
+      enrollments: { some: { courseId } },
+    },
     select: { id: true, name: true, email: true },
   });
   const byNormalizedName = new Map<string, { id: string; name: string | null; email: string }[]>();
@@ -249,6 +261,8 @@ const publishRowSchema = z.object({
 
 const publishTestReportSchema = z.object({
   title: z.string().trim().min(2, "Enter a title for this test.").max(80),
+  courseId: z.string().min(1, "Choose a course."),
+  batchId: z.string().min(1, "Choose a batch."),
   passingPercentage: z.coerce.number().min(0).max(100),
   rows: z.array(publishRowSchema).min(1, "No rows to publish."),
 });
@@ -266,11 +280,13 @@ export async function publishTestReportAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { title, passingPercentage, rows } = parsed.data;
+  const { title, courseId, batchId, passingPercentage, rows } = parsed.data;
 
   await prisma.testReport.create({
     data: {
       title,
+      courseId,
+      batchId,
       passingPercentage,
       createdById: session.user.id,
       entries: {
