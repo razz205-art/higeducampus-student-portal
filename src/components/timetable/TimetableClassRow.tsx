@@ -38,6 +38,12 @@ export default function TimetableClassRow({ item }: { item: ProjectedClass }) {
         <TimetableStatusBadge status={item.status} />
       </div>
 
+      {item.topic && (
+        <p className="mt-2 inline-block rounded-sm bg-gold-500/15 px-2 py-1 text-xs font-medium text-gold-700">
+          {item.topic}
+        </p>
+      )}
+
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-ink-900/60">
         <span className="flex items-center gap-1.5">
           <Clock size={12} aria-hidden="true" />
@@ -50,7 +56,7 @@ export default function TimetableClassRow({ item }: { item: ProjectedClass }) {
           </span>
         )}
         {item.meetingLink && (
-          <a
+          
             href={item.meetingLink}
             target="_blank"
             rel="noopener noreferrer"
