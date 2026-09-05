@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db/prisma";
 export interface ActionResult {
   success: boolean;
   message: string;
+  batchId?: string;
 }
 
 function isAdmin(role: string | undefined): boolean {
@@ -42,11 +43,11 @@ export async function createBatchAction(input: z.infer<typeof batchSchema>): Pro
     return { success: false, message: "A batch with that name already exists." };
   }
 
-  await prisma.batch.create({ data: parsed.data });
+  const batch = await prisma.batch.create({ data: parsed.data });
 
   revalidatePath("/academic-admin/batches");
   revalidatePath("/academic-admin/students");
-  return { success: true, message: "Batch created." };
+  return { success: true, message: "Batch created.", batchId: batch.id };
 }
 
 export async function deleteBatchAction(batchId: string): Promise<ActionResult> {
