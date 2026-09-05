@@ -523,6 +523,7 @@ model TimetableSlot {
   courseId    String
   batchId     String? // if set, only shown to students in this batch
    topic       String? // e.g. "Chapter 4: Cognitive Development" — shown highlighted on the class card
+   specificDate DateTime? @db.Date // if set, this is a one-time class on exactly this date, ignoring dayOfWeek recurrence
   dayOfWeek   Int // 0 = Sunday .. 6 = Saturday
   startTime   String // "HH:MM", 24-hour
   endTime     String // "HH:MM", 24-hour
