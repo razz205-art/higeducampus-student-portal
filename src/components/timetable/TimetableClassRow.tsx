@@ -35,7 +35,14 @@ export default function TimetableClassRow({ item }: { item: ProjectedClass }) {
             )}
           </p>
         </div>
-        <TimetableStatusBadge status={item.status} />
+        <div className="flex items-center gap-1.5">
+          {item.specificDate && (
+            <span className="rounded-sm bg-ink-900/5 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-900/50">
+              One-time
+            </span>
+          )}
+          <TimetableStatusBadge status={item.status} />
+        </div>
       </div>
 
       {item.topic && (
@@ -56,7 +63,7 @@ export default function TimetableClassRow({ item }: { item: ProjectedClass }) {
           </span>
         )}
         {item.meetingLink && (
-          <a
+          
             href={item.meetingLink}
             target="_blank"
             rel="noopener noreferrer"
