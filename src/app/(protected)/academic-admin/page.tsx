@@ -10,7 +10,7 @@ import {
   Bell,
   Award,
   Library,
-  BarChart3,
+  FileSpreadsheet,
 } from "lucide-react";
 import { auth } from "@/lib/auth/auth";
 import { routes } from "@/config/site";
@@ -70,10 +70,10 @@ const MANAGEMENT_LINKS = [
     icon: Bell,
   },
   {
-    href: "/academic-admin/results",
-    title: "Results",
-    description: "Publish semester results",
-    icon: BarChart3,
+    href: "/academic-admin/test-reports",
+    title: "Test Reports",
+    description: "Upload test results, view class dashboards",
+    icon: FileSpreadsheet,
   },
   {
     href: "/academic-admin/materials",
@@ -121,7 +121,7 @@ export default async function AdminDashboardPage() {
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-serif text-lg font-semibold text-ink-900">Manage</h2>
-          <a
+          
             href="/academic-admin/analytics"
             className="text-xs font-medium text-gold-600 hover:underline"
           >
