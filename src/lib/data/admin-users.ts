@@ -7,7 +7,8 @@ export interface AdminUserRow {
   email: string;
   isActive: boolean;
   createdAt: string;
-  batchName: string | null;
+  batchNames: string[]; // all batches this student belongs to — empty for faculty
+  batchIds: string[]; // same order as batchNames, used to pre-select the edit form
   registrationNumber: string | null;
   courseCount: number; // for faculty: courses taught; for students: enrollments
 }
@@ -32,7 +33,10 @@ async function listUsers(role: Role, search?: string): Promise<AdminUserRow[]> {
       isActive: true,
       createdAt: true,
       registrationNumber: true,
-      batch: { select: { name: true } },
+      studentBatches: {
+        select: { batch: { select: { id: true, name: true } } },
+        orderBy: { createdAt: "asc" },
+      },
       _count: { select: { enrollments: true, facultyCourses: true } },
     },
     orderBy: { name: "asc" },
@@ -46,7 +50,7 @@ async function listUsers(role: Role, search?: string): Promise<AdminUserRow[]> {
       isActive: boolean;
       createdAt: Date;
       registrationNumber: string | null;
-      batch: { name: string } | null;
+      studentBatches: { batch: { id: string; name: string } }[];
       _count: { enrollments: number; facultyCourses: number };
     }) => ({
       id: u.id,
@@ -54,7 +58,8 @@ async function listUsers(role: Role, search?: string): Promise<AdminUserRow[]> {
       email: u.email,
       isActive: u.isActive,
       createdAt: u.createdAt.toISOString().slice(0, 10),
-      batchName: u.batch?.name ?? null,
+      batchNames: u.studentBatches.map((sb) => sb.batch.name),
+      batchIds: u.studentBatches.map((sb) => sb.batch.id),
       registrationNumber: u.registrationNumber,
       courseCount: role === "STUDENT" ? u._count.enrollments : u._count.facultyCourses,
     })
