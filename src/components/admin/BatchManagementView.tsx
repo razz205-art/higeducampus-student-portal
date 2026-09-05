@@ -346,6 +346,7 @@ function StudentsTable({ batchId, batchName }: { batchId: string; batchName: str
 
 function BatchCard({ batch, courses }: { batch: AdminBatchRow; courses: CourseOption[] }) {
   const [isPending, startTransition] = useTransition();
+  const [hasOpened, setHasOpened] = useState(false);
 
   function remove(e: React.MouseEvent) {
     e.preventDefault();
@@ -356,8 +357,20 @@ function BatchCard({ batch, courses }: { batch: AdminBatchRow; courses: CourseOp
     });
   }
 
+  // Native <details> always renders its children into the DOM (just hides
+  // them when closed), including during server rendering — so without this
+  // guard, CourseAccessSection/StudentsTable would try to fetch data while
+  // the page is being server-rendered and crash the route. Tracking
+  // "has this ever been opened" via the browser's own toggle event means we
+  // still get fully native, always-reliable expand/collapse, while only
+  // mounting (and fetching) the heavier content the first time it's needed —
+  // and it stays mounted afterwards so re-collapsing doesn't refetch.
+  function handleToggle(e: React.SyntheticEvent<HTMLDetailsElement>) {
+    if (e.currentTarget.open) setHasOpened(true);
+  }
+
   return (
-    <details className="group border-ink-900/8 border-b">
+    <details className="group border-ink-900/8 border-b" onToggle={handleToggle}>
       <summary className="grid cursor-pointer list-none grid-cols-[1fr_140px_100px_44px] items-center gap-2 px-5 py-3 text-sm hover:bg-ink-900/[0.02] [&::-webkit-details-marker]:hidden">
         <span className="flex items-center gap-1.5 font-medium text-ink-900">
           <ChevronRight
@@ -384,8 +397,12 @@ function BatchCard({ batch, courses }: { batch: AdminBatchRow; courses: CourseOp
         </span>
       </summary>
       <div className="space-y-5 bg-ink-900/[0.02] px-5 py-4">
-        <CourseAccessSection batchId={batch.id} courses={courses} />
-        <StudentsTable batchId={batch.id} batchName={batch.name} />
+        {hasOpened && (
+          <>
+            <CourseAccessSection batchId={batch.id} courses={courses} />
+            <StudentsTable batchId={batch.id} batchName={batch.name} />
+          </>
+        )}
       </div>
     </details>
   );
