@@ -56,7 +56,7 @@ export default function TimetableClassRow({ item }: { item: ProjectedClass }) {
           </span>
         )}
         {item.meetingLink && (
-          
+          <a
             href={item.meetingLink}
             target="_blank"
             rel="noopener noreferrer"
