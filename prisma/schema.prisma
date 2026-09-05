@@ -592,15 +592,22 @@ model SemesterCourseResult {
 model TestReport {
   id                String   @id @default(cuid())
   title             String
+  courseId          String
+  batchId           String
   passingPercentage Float    @default(60)
   createdById       String
   createdAt         DateTime @default(now())
 
+  course    Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  batch     Batch             @relation(fields: [batchId], references: [id], onDelete: Cascade)
   createdBy User              @relation("TestReportCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   entries   TestReportEntry[]
 
   @@index([createdAt])
+  @@index([courseId])
+  @@index([batchId])
   @@map("test_reports")
+}
 }
 
 model TestReportEntry {
