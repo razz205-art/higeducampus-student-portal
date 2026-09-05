@@ -26,7 +26,7 @@ const createUserSchema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email address."),
   password: z.string().min(10, "Password must be at least 10 characters."),
   role: z.enum(["STUDENT", "FACULTY"]),
-  batchId: z.string().min(1).optional(),
+  batchIds: z.array(z.string().min(1)).max(20).optional(),
   courseIds: z.array(z.string().min(1)).max(20).optional(),
   sendEmail: z.boolean().optional(),
   customMessage: z.string().trim().max(2000).optional(),
@@ -52,7 +52,8 @@ export async function createUserAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { name, email, password, role, batchId, courseIds, sendEmail, customMessage } = parsed.data;
+  const { name, email, password, role, batchIds, courseIds, sendEmail, customMessage } =
+    parsed.data;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -60,6 +61,7 @@ export async function createUserAction(
   }
 
   const passwordHash = await hashPassword(password);
+  const uniqueBatchIds = Array.from(new Set(batchIds ?? []));
 
   const user = await prisma.user.create({
     data: {
@@ -67,13 +69,19 @@ export async function createUserAction(
       email,
       passwordHash,
       role: role as Role,
-      batchId: role === "STUDENT" ? batchId || null : null,
+      batchId: role === "STUDENT" ? (uniqueBatchIds[0] ?? null) : null,
       emailVerified: new Date(),
     },
   });
 
-  if (role === "STUDENT" && batchId) {
-    await enrollStudentInBatchCourses(user.id, batchId);
+  if (role === "STUDENT" && uniqueBatchIds.length > 0) {
+    await prisma.studentBatch.createMany({
+      data: uniqueBatchIds.map((batchId) => ({ studentId: user.id, batchId })),
+      skipDuplicates: true,
+    });
+    for (const batchId of uniqueBatchIds) {
+      await enrollStudentInBatchCourses(user.id, batchId);
+    }
   }
   if (role === "STUDENT" && courseIds && courseIds.length > 0) {
     await prisma.enrollment.createMany({
@@ -171,6 +179,69 @@ export async function deleteUserAction(userId: string): Promise<ActionResult> {
     message: `${role === "STUDENT" ? "Student" : "Faculty"} account permanently deleted.`,
   };
 }
+/**
+ * Replaces a student's full set of batch memberships with the given list.
+ * Newly-added batches trigger enrollment into whatever courses that batch
+ * already has standing access to (same as at creation time). Removed
+ * batches only drop the membership row — any course enrollments the
+ * student already has are left alone, since there's no reliable way to
+ * tell "this enrollment came from batch access" apart from one added
+ * individually; an admin can revoke course access separately if needed.
+ */
+export async function setStudentBatchesAction(
+  studentId: string,
+  batchIds: string[]
+): Promise<ActionResult> {
+  const session = await auth();
+  if (!session?.user) return { success: false, message: "You must be signed in." };
+  if (!isAdmin(session.user.role)) {
+    return { success: false, message: "You don't have permission to manage students." };
+  }
+
+  const student = await prisma.user.findUnique({
+    where: { id: studentId },
+    select: { role: true },
+  });
+  if (!student || student.role !== "STUDENT") {
+    return { success: false, message: "Student not found." };
+  }
+
+  const uniqueBatchIds = Array.from(new Set(batchIds));
+
+  const existing = await prisma.studentBatch.findMany({
+    where: { studentId },
+    select: { batchId: true },
+  });
+  const existingIds = new Set(existing.map((e: { batchId: string }) => e.batchId));
+  const toAdd = uniqueBatchIds.filter((id) => !existingIds.has(id));
+  const toRemove = [...existingIds].filter((id) => !uniqueBatchIds.includes(id as string));
+
+  if (toRemove.length > 0) {
+    await prisma.studentBatch.deleteMany({
+      where: { studentId, batchId: { in: toRemove as string[] } },
+    });
+  }
+  if (toAdd.length > 0) {
+    await prisma.studentBatch.createMany({
+      data: toAdd.map((batchId) => ({ studentId, batchId })),
+      skipDuplicates: true,
+    });
+    for (const batchId of toAdd) {
+      await enrollStudentInBatchCourses(studentId, batchId);
+    }
+  }
+
+  await prisma.user.update({
+    where: { id: studentId },
+    data: { batchId: uniqueBatchIds[0] ?? null },
+  });
+
+  revalidatePath("/academic-admin/students");
+  revalidatePath("/academic-admin/batches");
+
+  return { success: true, message: "Batches updated." };
+}
+
 // ---------------------------------------------------------------------------
 // Bulk student creation — one row per line, pasted in. Password is optional
 // per row: if left blank, a random temporary password is generated and
@@ -267,6 +338,7 @@ async function processBulkStudentRows(
     });
 
     if (batchId) {
+      await prisma.studentBatch.create({ data: { studentId: newStudent.id, batchId } });
       await enrollStudentInBatchCourses(newStudent.id, batchId);
     }
 
