@@ -13,6 +13,7 @@ function toItem(s: {
   courseId: string;
   batchId: string | null;
   topic: string | null;
+  specificDate: Date | null;
   dayOfWeek: number;
   startTime: string;
   endTime: string;
@@ -31,6 +32,7 @@ function toItem(s: {
     batchId: s.batchId,
     batchName: s.batch?.name ?? null,
     topic: s.topic,
+    specificDate: s.specificDate ? formatISODate(s.specificDate) : null,
     dayOfWeek: s.dayOfWeek,
     startTime: s.startTime,
     endTime: s.endTime,
@@ -119,12 +121,17 @@ export function computeStatus(
   return "completed";
 }
 
-/** All slots that recur on `date`'s weekday, projected onto that specific date. */
+/**
+ * All slots that occur on this exact date, projected onto it — either
+ * because it's a one-time class whose specificDate matches exactly, or
+ * because it's a recurring weekly class (no specificDate) whose dayOfWeek
+ * matches this date's weekday.
+ */
 export function projectDay(slots: TimetableSlotItem[], date: Date): ProjectedClass[] {
   const dayOfWeek = date.getUTCDay();
   const dateStr = formatISODate(date);
   return slots
-    .filter((s) => s.dayOfWeek === dayOfWeek)
+    .filter((s) => (s.specificDate ? s.specificDate === dateStr : s.dayOfWeek === dayOfWeek))
     .sort((a, b) => a.startTime.localeCompare(b.startTime))
     .map((s) => ({ ...s, date: dateStr, status: computeStatus(s, date) }));
 }
@@ -160,8 +167,11 @@ export function projectMonthCounts(
   for (let d = 1; d <= total; d++) {
     const date = toDateOnlyUTC(year, monthIndex, d);
     const dayOfWeek = date.getUTCDay();
-    const count = slots.filter((s) => s.dayOfWeek === dayOfWeek).length;
-    days.push({ date: formatISODate(date), dayOfWeek, classCount: count });
+    const dateStr = formatISODate(date);
+    const count = slots.filter((s) =>
+      s.specificDate ? s.specificDate === dateStr : s.dayOfWeek === dayOfWeek
+    ).length;
+    days.push({ date: dateStr, dayOfWeek, classCount: count });
   }
   return days;
 }
