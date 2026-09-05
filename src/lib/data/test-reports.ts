@@ -40,10 +40,15 @@ export async function getTestReportsForAdmin(): Promise<TestReportSummary[]> {
     orderBy: { createdAt: "desc" },
   });
 
-  return reports.map((r) => {
+  return reports.map((r: (typeof reports)[number]) => {
     const total = r.entries.length;
-    const avg = total > 0 ? r.entries.reduce((sum, e) => sum + e.percentage, 0) / total : 0;
-    const passCount = r.entries.filter((e) => e.status === "PASS").length;
+    const avg =
+      total > 0
+        ? r.entries.reduce((sum: number, e: (typeof r.entries)[number]) => sum + e.percentage, 0) /
+          total
+        : 0;
+    const passCount = r.entries.filter((e: (typeof r.entries)[number]) => e.status === "PASS")
+      .length;
     return {
       id: r.id,
       title: r.title,
@@ -81,15 +86,21 @@ export async function getTestReportDetail(id: string): Promise<TestReportDetail 
   });
   if (!report) return null;
 
-  const entries = report.entries.map(toEntryRow);
+  const entries: TestReportEntryRow[] = report.entries.map(toEntryRow);
   const total = entries.length;
-  const avg = total > 0 ? entries.reduce((sum, e) => sum + e.percentage, 0) / total : 0;
-  const passCount = entries.filter((e) => e.status === "PASS").length;
-  const highest = total > 0 ? Math.max(...entries.map((e) => e.percentage)) : 0;
+  const avg =
+    total > 0
+      ? entries.reduce((sum: number, e: TestReportEntryRow) => sum + e.percentage, 0) / total
+      : 0;
+  const passCount = entries.filter((e: TestReportEntryRow) => e.status === "PASS").length;
+  const highest =
+    total > 0 ? Math.max(...entries.map((e: TestReportEntryRow) => e.percentage)) : 0;
 
   const distribution: ScoreDistributionBucket[] = DISTRIBUTION_BUCKETS.map((b) => ({
     label: b.label,
-    count: entries.filter((e) => e.percentage >= b.min && e.percentage <= b.max).length,
+    count: entries.filter(
+      (e: TestReportEntryRow) => e.percentage >= b.min && e.percentage <= b.max
+    ).length,
   })).filter((b) => b.count > 0);
 
   return {
@@ -128,7 +139,7 @@ export async function getStudentTestReports(studentId: string): Promise<StudentT
     orderBy: { testReport: { createdAt: "desc" } },
   });
 
-  return entries.map((e) => ({
+  return entries.map((e: (typeof entries)[number]) => ({
     testReportId: e.testReport.id,
     title: e.testReport.title,
     createdAt: formatISODate(e.testReport.createdAt),
