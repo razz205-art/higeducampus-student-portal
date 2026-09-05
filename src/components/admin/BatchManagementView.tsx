@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { ChevronRight, Plus, Trash2, Users, BookOpen, X } from "lucide-react";
 import {
   createBatchAction,
@@ -347,6 +347,7 @@ function StudentsTable({ batchId, batchName }: { batchId: string; batchName: str
 function BatchCard({ batch, courses }: { batch: AdminBatchRow; courses: CourseOption[] }) {
   const [isPending, startTransition] = useTransition();
   const [hasOpened, setHasOpened] = useState(false);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
 
   function remove(e: React.MouseEvent) {
     e.preventDefault();
@@ -358,19 +359,28 @@ function BatchCard({ batch, courses }: { batch: AdminBatchRow; courses: CourseOp
   }
 
   // Native <details> always renders its children into the DOM (just hides
-  // them when closed), including during server rendering — so without this
-  // guard, CourseAccessSection/StudentsTable would try to fetch data while
-  // the page is being server-rendered and crash the route. Tracking
-  // "has this ever been opened" via the browser's own toggle event means we
-  // still get fully native, always-reliable expand/collapse, while only
-  // mounting (and fetching) the heavier content the first time it's needed —
-  // and it stays mounted afterwards so re-collapsing doesn't refetch.
-  function handleToggle(e: React.SyntheticEvent<HTMLDetailsElement>) {
-    if (e.currentTarget.open) setHasOpened(true);
-  }
+  // them when closed), including during server rendering — so without a
+  // "has this ever been opened" guard, CourseAccessSection/StudentsTable
+  // would try to fetch data while the page is being server-rendered and
+  // crash the route. We track that via the browser's own toggle event so
+  // expand/collapse itself stays fully native and reliable.
+  //
+  // The toggle event on <details> does not bubble, and React 18's event
+  // system relies on bubbling for delegation — so the onToggle *prop*
+  // doesn't fire reliably here. Attaching the listener straight to the DOM
+  // node with a ref sidesteps React's event system entirely.
+  useEffect(() => {
+    const el = detailsRef.current;
+    if (!el) return;
+    function handleToggle() {
+      if (el!.open) setHasOpened(true);
+    }
+    el.addEventListener("toggle", handleToggle);
+    return () => el.removeEventListener("toggle", handleToggle);
+  }, []);
 
   return (
-    <details className="group border-ink-900/8 border-b" onToggle={handleToggle}>
+    <details ref={detailsRef} className="group border-ink-900/8 border-b">
       <summary className="grid cursor-pointer list-none grid-cols-[1fr_140px_100px_44px] items-center gap-2 px-5 py-3 text-sm hover:bg-ink-900/[0.02] [&::-webkit-details-marker]:hidden">
         <span className="flex items-center gap-1.5 font-medium text-ink-900">
           <ChevronRight
