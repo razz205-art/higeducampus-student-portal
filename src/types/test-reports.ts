@@ -19,6 +19,11 @@ export interface TestReportSummary {
   title: string;
   createdAt: string; // ISO date
   passingPercentage: number;
+  courseId: string;
+  courseCode: string;
+  courseName: string;
+  batchId: string;
+  batchName: string;
   totalStudents: number;
   averagePercentage: number;
   passRate: number; // 0-100
@@ -35,6 +40,11 @@ export interface TestReportDetail {
   title: string;
   createdAt: string;
   passingPercentage: number;
+  courseId: string;
+  courseCode: string;
+  courseName: string;
+  batchId: string;
+  batchName: string;
   totalStudents: number;
   averagePercentage: number;
   passRate: number;
