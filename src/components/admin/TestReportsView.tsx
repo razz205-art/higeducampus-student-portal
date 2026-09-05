@@ -15,6 +15,7 @@ import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
 import Badge from "@/components/ui/Badge";
 import type { TestReportSummary } from "@/types/test-reports";
+import type { CourseOption, BatchOption } from "@/types/attendance";
 
 const MATCH_LABEL: Record<TestReportPreviewRow["matchStatus"], string> = {
   matched: "Linked",
@@ -22,9 +23,19 @@ const MATCH_LABEL: Record<TestReportPreviewRow["matchStatus"], string> = {
   ambiguous: "Multiple accounts match",
 };
 
-function UploadForm({ onDone }: { onDone: () => void }) {
+function UploadForm({
+  courses,
+  batches,
+  onDone,
+}: {
+  courses: CourseOption[];
+  batches: BatchOption[];
+  onDone: () => void;
+}) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
+  const [courseId, setCourseId] = useState(courses[0]?.id ?? "");
+  const [batchId, setBatchId] = useState(batches[0]?.id ?? "");
   const [passingPercentage, setPassingPercentage] = useState("60");
   const [rows, setRows] = useState<TestReportPreviewRow[] | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -45,10 +56,16 @@ function UploadForm({ onDone }: { onDone: () => void }) {
       setPreviewError("Choose a file first.");
       return;
     }
+    if (!courseId || !batchId) {
+      setPreviewError("Choose a course and a batch first.");
+      return;
+    }
 
     const formData = new FormData();
     formData.set("file", file);
     formData.set("passingPercentage", passingPercentage);
+    formData.set("courseId", courseId);
+    formData.set("batchId", batchId);
 
     startPreviewTransition(async () => {
       const res = await previewTestReportUploadAction(formData);
@@ -65,6 +82,8 @@ function UploadForm({ onDone }: { onDone: () => void }) {
     startPublishTransition(async () => {
       const res = await publishTestReportAction({
         title,
+        courseId,
+        batchId,
         passingPercentage: Number(passingPercentage),
         rows: rows.map((r) => ({
           rank: r.rank,
@@ -104,7 +123,9 @@ function UploadForm({ onDone }: { onDone: () => void }) {
 
       <p className="flex items-start gap-1.5 text-xs text-ink-900/50">
         <HelpCircle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
-              Needs &quot;Name&quot; and &quot;Percentage&quot; columns (.csv or .xlsx). &quot;Rank&quot;,
+        Choose the course and batch this test belongs to — only students in that batch who are
+        enrolled in that course are considered when matching names from the file. Needs
+        &quot;Name&quot; and &quot;Percentage&quot; columns (.csv or .xlsx). &quot;Rank&quot;,
         &quot;Correct&quot;, &quot;Incorrect&quot;, and &quot;Time&quot; columns are used if present
         — rank is otherwise worked out from percentage. Every row in the file is published as
         part of the report, even ones that don&apos;t match a student account, so class-wide
@@ -120,6 +141,47 @@ function UploadForm({ onDone }: { onDone: () => void }) {
           placeholder="e.g. Weekly Test 1"
           required
         />
+
+        <div>
+          <label htmlFor="courseId" className="mb-1.5 block text-sm font-medium text-ink-800">
+            Course
+          </label>
+          <select
+            id="courseId"
+            value={courseId}
+            onChange={(e) => setCourseId(e.target.value)}
+            required
+            className="w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+          >
+            {courses.length === 0 && <option value="">No courses yet</option>}
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.code} — {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="batchId" className="mb-1.5 block text-sm font-medium text-ink-800">
+            Batch
+          </label>
+          <select
+            id="batchId"
+            value={batchId}
+            onChange={(e) => setBatchId(e.target.value)}
+            required
+            className="w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+          >
+            {batches.length === 0 && <option value="">No batches yet</option>}
+            {batches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <Input
           label="Passing percentage"
           name="passingPercentage"
@@ -131,6 +193,7 @@ function UploadForm({ onDone }: { onDone: () => void }) {
           onChange={(e) => setPassingPercentage(e.target.value)}
           required
         />
+
         <div>
           <label htmlFor="testReportFile" className="mb-1.5 block text-sm font-medium text-ink-800">
             File
@@ -243,7 +306,9 @@ function Row({ report }: { report: TestReportSummary }) {
     <tr>
       <td className="px-5 py-3">
         <p className="font-medium text-ink-900">{report.title}</p>
-        <p className="text-xs text-ink-900/45">{report.createdAt}</p>
+        <p className="text-xs text-ink-900/45">
+          {report.courseCode} · {report.batchName} · {report.createdAt}
+        </p>
       </td>
       <td className="px-5 py-3 text-ink-900/70">{report.totalStudents}</td>
       <td className="px-5 py-3 text-ink-900/70">{report.averagePercentage}%</td>
@@ -271,7 +336,15 @@ function Row({ report }: { report: TestReportSummary }) {
   );
 }
 
-export default function TestReportsView({ reports }: { reports: TestReportSummary[] }) {
+export default function TestReportsView({
+  reports,
+  courses,
+  batches,
+}: {
+  reports: TestReportSummary[];
+  courses: CourseOption[];
+  batches: BatchOption[];
+}) {
   const [showUpload, setShowUpload] = useState(false);
 
   return (
@@ -285,7 +358,9 @@ export default function TestReportsView({ reports }: { reports: TestReportSummar
           Upload test report
         </button>
       )}
-      {showUpload && <UploadForm onDone={() => setShowUpload(false)} />}
+      {showUpload && (
+        <UploadForm courses={courses} batches={batches} onDone={() => setShowUpload(false)} />
+      )}
 
       <DashboardCard title="Test Reports" icon={ClipboardList} bodyClassName="p-0">
         {reports.length === 0 ? (
