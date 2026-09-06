@@ -1,6 +1,7 @@
 import { ClipboardList, CheckCircle2, TrendingUp } from "lucide-react";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import Badge from "@/components/ui/Badge";
+import { formatTimeRaw } from "@/lib/utils/date";
 import type { StudentTestReportRow } from "@/types/test-reports";
 
 function Row({ row }: { row: StudentTestReportRow }) {
@@ -53,7 +54,7 @@ function Row({ row }: { row: StudentTestReportRow }) {
         <div>
           <p className="text-xs uppercase tracking-wide text-ink-900/40">Time</p>
           <p className="mt-0.5 font-serif text-lg font-semibold text-ink-900">
-            {row.timeRaw ?? "—"}
+            {formatTimeRaw(row.timeRaw)}
           </p>
         </div>
       </div>
