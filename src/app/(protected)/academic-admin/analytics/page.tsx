@@ -6,8 +6,6 @@ import {
   Percent,
   Award,
   TrendingUp,
-  Activity,
-  CalendarRange,
 } from "lucide-react";
 import { auth } from "@/lib/auth/auth";
 import { routes } from "@/config/site";
@@ -119,7 +117,7 @@ export default async function AdminAnalyticsPage({
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ActivityChart title="Student Growth" icon={Users} data={studentGrowth} />
+        <ActivityChart title="Student Growth" icon="Users" data={studentGrowth} />
         <AttendanceTrendChart data={attendanceTrend} title="Attendance Trend" />
       </div>
 
@@ -134,9 +132,9 @@ export default async function AdminAnalyticsPage({
               active={String(dauDays)}
             />
           </div>
-          <ActivityChart title="Daily Active Users" icon={Activity} data={dau} />
+          <ActivityChart title="Daily Active Users" icon="Activity" data={dau} />
         </div>
-        <ActivityChart title="Monthly Active Users" icon={CalendarRange} data={mau} />
+        <ActivityChart title="Monthly Active Users" icon="CalendarRange" data={mau} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -144,7 +142,7 @@ export default async function AdminAnalyticsPage({
         <AssignmentCompletionCard rows={assignmentCompletion} />
       </div>
 
-      <ActivityChart title="Students per Batch" icon={Users} data={enrollmentActivityPoints} />
+      <ActivityChart title="Students per Batch" icon="Users" data={enrollmentActivityPoints} />
 
       <FacultyPerformanceCard rows={facultyPerformance} />
     </div>
