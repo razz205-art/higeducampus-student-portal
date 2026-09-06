@@ -20,6 +20,7 @@ function toItem(s: {
   location: string | null;
   meetingLink: string | null;
   isActive: boolean;
+  isExam: boolean;
   course: { code: string; name: string; faculty: { name: string | null; email: string } };
   batch: { name: string } | null;
 }): TimetableSlotItem {
@@ -39,6 +40,7 @@ function toItem(s: {
     location: s.location,
     meetingLink: s.meetingLink,
     isActive: s.isActive,
+    isExam: s.isExam,
   };
 }
 
