@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import PDFDocument from "pdfkit";
 import type { TestReportDetail } from "@/types/test-reports";
 import { formatTimeRaw } from "@/lib/utils/date";
@@ -14,6 +16,104 @@ const ERROR = "#B3392C";
 const BORDER = "#E5E1D8";
 
 const MARGIN = 40;
+
+// The app's logo is a light/white mark meant for a dark background (see
+// public/hig-educampus-logo.png), so the cover page uses the same ink-900
+// background the app itself uses behind that logo, rather than dropping a
+// white-on-white logo onto a plain page.
+function drawCoverPage(doc: PDFKit.PDFDocument, report: TestReportDetail, typeLabel: string) {
+  const pageWidth = doc.page.width;
+  const pageHeight = doc.page.height;
+
+  doc.rect(0, 0, pageWidth, pageHeight).fill(INK);
+
+  const logoPath = path.join(process.cwd(), "public", "hig-educampus-logo.png");
+  const logoSize = 90;
+  const logoX = (pageWidth - logoSize) / 2;
+  const logoY = 110;
+  try {
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, logoX, logoY, { width: logoSize, height: logoSize });
+    }
+  } catch {
+    // Missing logo shouldn't block the report — fall through without it.
+  }
+
+  const ruleY = logoY + logoSize + 28;
+  const ruleWidth = 60;
+  doc
+    .moveTo((pageWidth - ruleWidth) / 2, ruleY)
+    .lineTo((pageWidth + ruleWidth) / 2, ruleY)
+    .lineWidth(1.5)
+    .strokeColor(GOLD)
+    .stroke();
+
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .fillColor(GOLD)
+    .text("T E S T   R E P O R T", 0, ruleY + 22, { width: pageWidth, align: "center" });
+
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(24)
+    .fillColor("#FAF9F6")
+    .text(report.title, MARGIN + 20, ruleY + 46, {
+      width: pageWidth - (MARGIN + 20) * 2,
+      align: "center",
+    });
+
+  doc
+    .font("Helvetica")
+    .fontSize(11)
+    .fillColor(GOLD)
+    .text(typeLabel, 0, doc.y + 8, { width: pageWidth, align: "center" });
+
+  const detailsY = doc.y + 40;
+  const details: { label: string; value: string }[] = [
+    { label: "Course", value: `${report.courseCode} — ${report.courseName}` },
+    { label: "Batch", value: report.batchName },
+    { label: "Test Date", value: report.createdAt },
+  ];
+  const rowHeight = 30;
+  const blockWidth = 320;
+  const blockX = (pageWidth - blockWidth) / 2;
+
+  details.forEach((d, i) => {
+    const y = detailsY + i * rowHeight;
+    doc
+      .moveTo(blockX, y - 6)
+      .lineTo(blockX + blockWidth, y - 6)
+      .lineWidth(0.5)
+      .strokeColor("#FAF9F6")
+      .strokeOpacity(0.12)
+      .stroke();
+    doc.strokeOpacity(1);
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .fillColor(GOLD)
+      .text(d.label.toUpperCase(), blockX, y, { width: 100 });
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(11)
+      .fillColor("#FAF9F6")
+      .text(d.value, blockX + 100, y - 1, { width: blockWidth - 100, align: "right" });
+  });
+
+  const today = new Date().toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor("#FAF9F6")
+    .fillOpacity(0.55)
+    .text(`Generated on ${today}`, 0, pageHeight - 60, { width: pageWidth, align: "center" });
+  doc.fillOpacity(1);
+}
 
 function statCard(
   doc: PDFKit.PDFDocument,
@@ -65,6 +165,9 @@ export async function buildTestReportPdf(
   );
 
   const contentWidth = doc.page.width - MARGIN * 2;
+
+  drawCoverPage(doc, report, typeLabel);
+  doc.addPage();
 
   // --- Title + type badge ---
   doc.font("Helvetica-Bold").fontSize(19).fillColor(INK);
