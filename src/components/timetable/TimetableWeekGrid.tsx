@@ -53,3 +53,4 @@ export default function TimetableWeekGrid({ days }: { days: ProjectedWeekDay[] }
     </div>
   );
 }
+
