@@ -2,7 +2,12 @@ import { Trophy, CheckCircle2, TrendingUp, ChevronRight } from "lucide-react";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import Badge from "@/components/ui/Badge";
 import { formatTimeRaw } from "@/lib/utils/date";
+import { TEST_REPORT_TYPES } from "@/types/test-reports";
 import type { TestReportDetail } from "@/types/test-reports";
+
+function typeLabel(t: TestReportDetail["testType"]): string {
+  return TEST_REPORT_TYPES.find((x) => x.value === t)?.label ?? t;
+}
 
 function ReportRankings({
   report,
@@ -24,6 +29,9 @@ function ReportRankings({
           />
           <span>
             <span className="font-medium text-ink-900">{report.title}</span>
+            <span className="ml-2 rounded-sm bg-ink-900/5 px-1.5 py-0.5 text-xs text-ink-900/60">
+              {typeLabel(report.testType)}
+            </span>
             <span className="ml-2 text-xs text-ink-900/45">{report.createdAt}</span>
           </span>
         </span>
