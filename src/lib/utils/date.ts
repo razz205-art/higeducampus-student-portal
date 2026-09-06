@@ -126,6 +126,24 @@ export function getQuickRangePresets(reference: Date = todayUTC()): DateRangePre
   ];
 }
 
+/**
+ * Test report "time taken" values were briefly stored as the full
+ * JS Date#toString() output for Excel duration cells (e.g. "Sat Dec 30
+ * 1899 00:12:24 GMT+0000 (Coordinated Universal Time)") — Excel decodes a
+ * duration cell to a Date at its 1899 epoch, and the upload parser used to
+ * print that whole object instead of just the clock time. This extracts
+ * just HH:MM:SS (dropping the always-zero hour when it's a sub-hour time),
+ * and works equally well on already-clean values, so it's safe to apply to
+ * every timeRaw value regardless of when it was uploaded.
+ */
+export function formatTimeRaw(raw: string | null | undefined): string {
+  if (!raw) return "—";
+  const match = raw.match(/(\d{1,2}):(\d{2}):(\d{2})/);
+  if (!match) return raw;
+  const [, hh, mm, ss] = match;
+  return hh === "0" || hh === "00" ? `${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+}
+
 /** "2 hours ago", "3 days ago", etc. — falls back to a short date past ~30 days. */
 export function formatRelativeTime(iso: string): string {
   const then = new Date(iso).getTime();
