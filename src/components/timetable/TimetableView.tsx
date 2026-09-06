@@ -5,23 +5,46 @@ import {
   formatISODate,
   parseISODate,
 } from "@/lib/utils/date";
-import { projectDay, projectWeek, projectMonthCounts } from "@/lib/data/timetable";
+import {
+  projectDay,
+  projectWeek,
+  projectMonthCounts,
+  enrichClassesWithCompletions,
+} from "@/lib/data/timetable";
 import TimetableViewTabs from "@/components/timetable/TimetableViewTabs";
 import TimetableDayList from "@/components/timetable/TimetableDayList";
 import TimetableWeekGrid from "@/components/timetable/TimetableWeekGrid";
 import TimetableMonthCalendar from "@/components/timetable/TimetableMonthCalendar";
-import type { TimetableSlotItem } from "@/types/timetable";
+import type { TimetableSlotItem, ProjectedClass } from "@/types/timetable";
+import type { ProjectedWeekDay } from "@/lib/data/timetable";
 
-export default function TimetableView({
+// When studentId is provided, every projected class is enriched with that
+// student's own join/watch/attend completion state, which turns on the
+// self-mark controls in TimetableClassRow. Faculty/admin views omit
+// studentId and see the same rows without any marking UI.
+async function enrichDay(studentId: string | undefined, classes: ProjectedClass[]) {
+  return studentId ? enrichClassesWithCompletions(studentId, classes) : classes;
+}
+
+async function enrichWeek(studentId: string | undefined, days: ProjectedWeekDay[]) {
+  if (!studentId) return days;
+  return Promise.all(
+    days.map(async (day) => ({ ...day, classes: await enrichClassesWithCompletions(studentId, day.classes) }))
+  );
+}
+
+export default async function TimetableView({
   basePath,
   slots,
   searchParams,
   subtitle,
+  studentId,
 }: {
   basePath: string;
   slots: TimetableSlotItem[];
   searchParams: { view?: string; month?: string; date?: string };
   subtitle: string;
+  studentId?: string;
 }) {
   const view = searchParams.view ?? "today";
   const today = todayUTC();
@@ -34,13 +57,24 @@ export default function TimetableView({
       <TimetableDayList
         title="Tomorrow's Classes"
         date={formatISODate(date)}
-        classes={projectDay(slots, date)}
+        classes={await enrichDay(studentId, projectDay(slots, date))}
       />
     );
   } else if (view === "week") {
-    body = <TimetableWeekGrid days={projectWeek(slots, getWeekStartUTC(today))} />;
+    body = (
+      <TimetableWeekGrid
+        days={await enrichWeek(studentId, projectWeek(slots, getWeekStartUTC(today)))}
+      />
+    );
   } else if (view === "nextweek") {
-    body = <TimetableWeekGrid days={projectWeek(slots, addDaysUTC(getWeekStartUTC(today), 7))} />;
+    body = (
+      <TimetableWeekGrid
+        days={await enrichWeek(
+          studentId,
+          projectWeek(slots, addDaysUTC(getWeekStartUTC(today), 7))
+        )}
+      />
+    );
   } else if (view === "calendar") {
     let year = today.getUTCFullYear();
     let monthIndex = today.getUTCMonth();
@@ -63,7 +97,7 @@ export default function TimetableView({
           <TimetableDayList
             title="Classes on this day"
             date={searchParams.date}
-            classes={projectDay(slots, parseISODate(searchParams.date))}
+            classes={await enrichDay(studentId, projectDay(slots, parseISODate(searchParams.date)))}
           />
         )}
       </div>
@@ -74,7 +108,7 @@ export default function TimetableView({
       <TimetableDayList
         title="Today's Classes"
         date={formatISODate(today)}
-        classes={projectDay(slots, today)}
+        classes={await enrichDay(studentId, projectDay(slots, today))}
       />
     );
   }
