@@ -20,12 +20,16 @@ const nextConfig = {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
   // pdfkit reads its built-in standard font metric (.afm) files from disk
-  // at runtime via fs.readFileSync, but Vercel's serverless file tracing
-  // can't detect that dynamic read, so those files get left out of the
-  // deployed function bundle and every PDF-generating route 500s with
-  // ENOENT ".../data/Helvetica.afm". Explicitly including pdfkit's data
-  // directory for each route that renders a PDF fixes this for all of them.
+  // at runtime, using a path built relative to its own module location.
+  // When webpack bundles a route into a single chunk file, that relative
+  // path gets rewritten to point inside .next/server/chunks instead of
+  // node_modules/pdfkit, where the actual font files live — outputFileTracingIncludes
+  // alone doesn't fix this, since the files exist in the deployment but not
+  // at the path pdfkit is actually looking in post-bundling. Marking pdfkit
+  // external keeps it as a normal node_modules require() at runtime instead
+  // of bundling it, which preserves the correct relative path.
   experimental: {
+    serverComponentsExternalPackages: ["pdfkit"],
     outputFileTracingIncludes: {
       "/api/attendance/report": ["./node_modules/pdfkit/js/data/**/*"],
       "/api/attendance/report/course": ["./node_modules/pdfkit/js/data/**/*"],
@@ -38,5 +42,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-
-
