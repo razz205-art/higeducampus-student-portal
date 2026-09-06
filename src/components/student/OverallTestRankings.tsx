@@ -1,6 +1,7 @@
 import { Trophy, CheckCircle2, TrendingUp, ChevronRight } from "lucide-react";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import Badge from "@/components/ui/Badge";
+import { formatTimeRaw } from "@/lib/utils/date";
 import type { TestReportDetail } from "@/types/test-reports";
 
 function ReportRankings({
@@ -65,7 +66,7 @@ function ReportRankings({
                   <td className="px-5 py-2.5 font-medium text-ink-900">{e.percentage}%</td>
                   <td className="px-5 py-2.5 text-signal-success">{e.correct ?? "—"}</td>
                   <td className="px-5 py-2.5 text-signal-error">{e.incorrect ?? "—"}</td>
-                  <td className="px-5 py-2.5 text-ink-900/60">{e.timeRaw ?? "—"}</td>
+                  <td className="px-5 py-2.5 text-ink-900/60">{formatTimeRaw(e.timeRaw)}</td>
                   <td className="px-5 py-2.5">
                     <Badge variant={e.status === "PASS" ? "success" : "warning"}>
                       {e.status === "PASS" ? (
