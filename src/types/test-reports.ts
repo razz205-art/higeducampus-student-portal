@@ -1,5 +1,14 @@
 export type TestReportEntryStatus = "PASS" | "NEEDS_IMPROVEMENT";
 
+export type TestReportType = "DAILY" | "WEEKLY" | "MODULE" | "MOCK";
+
+export const TEST_REPORT_TYPES: { value: TestReportType; label: string }[] = [
+  { value: "DAILY", label: "Daily Test" },
+  { value: "WEEKLY", label: "Weekly Test" },
+  { value: "MODULE", label: "Module Test" },
+  { value: "MOCK", label: "Mock Test" },
+];
+
 export interface TestReportEntryRow {
   id: string;
   rank: number;
@@ -17,6 +26,7 @@ export interface TestReportEntryRow {
 export interface TestReportSummary {
   id: string;
   title: string;
+  testType: TestReportType;
   createdAt: string; // ISO date
   passingPercentage: number;
   courseId: string;
@@ -38,6 +48,7 @@ export interface ScoreDistributionBucket {
 export interface TestReportDetail {
   id: string;
   title: string;
+  testType: TestReportType;
   createdAt: string;
   passingPercentage: number;
   courseId: string;
@@ -58,6 +69,7 @@ export interface TestReportDetail {
 export interface StudentTestReportRow {
   testReportId: string;
   title: string;
+  testType: TestReportType;
   createdAt: string;
   rank: number;
   totalStudents: number;
@@ -66,4 +78,22 @@ export interface StudentTestReportRow {
   incorrect: number | null;
   timeRaw: string | null;
   status: TestReportEntryStatus;
+}
+
+/** One point in a per-test-type score trend, used by the progress-by-type view. */
+export interface TestTypeTrendPoint {
+  label: string; // the test's title
+  date: string; // ISO date
+  percentage: number;
+}
+
+/** A student's progress within a single test type (Daily/Weekly/Module/Mock). */
+export interface TestTypeProgress {
+  testType: TestReportType;
+  label: string; // "Daily Test", etc.
+  testsTaken: number;
+  averagePercentage: number;
+  latestPercentage: number | null;
+  passRate: number; // 0-100, of the student's own attempts in this type
+  trend: TestTypeTrendPoint[];
 }
