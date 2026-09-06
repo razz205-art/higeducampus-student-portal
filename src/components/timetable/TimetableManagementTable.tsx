@@ -37,11 +37,18 @@ function Row({ slot, onEdit }: { slot: TimetableSlotItem; onEdit: () => void }) 
           {slot.facultyName}
           {slot.batchName ? ` · ${slot.batchName}` : ""}
         </p>
-        {slot.topic && (
-          <p className="mt-1 inline-block rounded-sm bg-gold-500/15 px-1.5 py-0.5 text-xs font-medium text-gold-700">
-            {slot.topic}
-          </p>
-        )}
+        <p className="mt-1 flex flex-wrap items-center gap-1.5">
+          {slot.isExam && (
+            <span className="rounded-sm bg-signal-error/10 px-1.5 py-0.5 text-xs font-medium text-signal-error">
+              Exam
+            </span>
+          )}
+          {slot.topic && (
+            <span className="inline-block rounded-sm bg-gold-500/15 px-1.5 py-0.5 text-xs font-medium text-gold-700">
+              {slot.topic}
+            </span>
+          )}
+        </p>
       </td>
       <td className="px-5 py-3 text-ink-900/70">
         <p className="flex items-center gap-1.5">
@@ -60,7 +67,7 @@ function Row({ slot, onEdit }: { slot: TimetableSlotItem; onEdit: () => void }) 
       <td className="px-5 py-3 text-ink-900/70">
         {slot.location ?? "—"}
         {slot.meetingLink && (
-          <a
+          
             href={slot.meetingLink}
             target="_blank"
             rel="noopener noreferrer"
