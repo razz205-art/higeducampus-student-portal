@@ -63,7 +63,7 @@ function Row({ row }: { row: StudentTestReportRow }) {
 
 export default function StudentTestReportsView({ rows }: { rows: StudentTestReportRow[] }) {
   return (
-    <DashboardCard title="My Test Results" icon={ClipboardList} bodyClassName="p-0">
+    <DashboardCard title="My Results" icon={ClipboardList} bodyClassName="p-0">
       {rows.length === 0 ? (
         <p className="p-5 text-center text-sm text-ink-900/45">
           No test results published for you yet.
