@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { auth } from "@/lib/auth/auth";
 import { routes } from "@/config/site";
 import { getTestReportDetail } from "@/lib/data/test-reports";
@@ -24,13 +24,22 @@ export default async function AdminTestReportDetailPage({
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/academic-admin/test-reports"
-        className="flex items-center gap-1.5 text-sm font-medium text-ink-900/60 hover:text-ink-900"
-      >
-        <ArrowLeft size={15} aria-hidden="true" />
-        Back to Test Reports
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link
+          href="/academic-admin/test-reports"
+          className="flex items-center gap-1.5 text-sm font-medium text-ink-900/60 hover:text-ink-900"
+        >
+          <ArrowLeft size={15} aria-hidden="true" />
+          Back to Test Reports
+        </Link>
+        
+          href={`/api/test-reports/${report.id}/pdf`}
+          className="flex items-center gap-1.5 rounded-sm bg-ink-900 px-3.5 py-2 text-xs font-medium text-parchment-50 hover:bg-ink-800"
+        >
+          <Download size={14} aria-hidden="true" />
+          Download Report
+        </a>
+      </div>
       <TestReportDetail report={report} />
     </div>
   );
