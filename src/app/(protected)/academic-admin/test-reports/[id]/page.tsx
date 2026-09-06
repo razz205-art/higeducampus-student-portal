@@ -32,7 +32,7 @@ export default async function AdminTestReportDetailPage({
           <ArrowLeft size={15} aria-hidden="true" />
           Back to Test Reports
         </Link>
-        
+        <a
           href={`/api/test-reports/${report.id}/pdf`}
           className="flex items-center gap-1.5 rounded-sm bg-ink-900 px-3.5 py-2 text-xs font-medium text-parchment-50 hover:bg-ink-800"
         >
