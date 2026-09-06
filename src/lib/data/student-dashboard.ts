@@ -5,7 +5,7 @@ import { getActiveExams } from "@/lib/data/exams";
 import { getStudentTimetableSlots, projectWeek } from "@/lib/data/timetable";
 import { getRecentSummaries } from "@/lib/data/notifications";
 import { getResultsPerformanceTrend } from "@/lib/data/results";
-import { formatDayLabel, getWeekStartUTC, parseISODate, todayUTC } from "@/lib/utils/date";
+import { formatDayLabel, formatDisplayDate, getWeekStartUTC, parseISODate, todayUTC } from "@/lib/utils/date";
 import type {
   StudentDashboardData,
   AssignmentStatus,
@@ -71,9 +71,12 @@ export async function getStudentDashboardData(userId: string): Promise<StudentDa
       id: c.id,
       courseName: `${c.courseCode} — ${c.courseName}`,
       instructor: c.facultyName,
+      topic: c.topic,
       day: formatDayLabel(parseISODate(c.date)),
+      date: formatDisplayDate(parseISODate(c.date)),
       time: `${c.startTime} – ${c.endTime}`,
       location: c.location ?? (c.meetingLink ? "Online" : "TBA"),
+      meetingLink: c.meetingLink,
     }));
 
   // Upcoming exams: merges exam-flagged timetable sessions (course tests set
