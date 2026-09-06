@@ -138,6 +138,33 @@ export async function deleteTestReportById(id: string): Promise<void> {
   await prisma.testReport.delete({ where: { id } });
 }
 
+/**
+ * Full rankings (every student, not just the requesting one) for every test
+ * report a given student has an entry in. Used for the student-facing
+ * "Overall Rankings" section so students can see how their score compares
+ * to the rest of their batch — access is implicitly scoped to tests the
+ * student actually appears in, since the id list comes from their own
+ * TestReportEntry rows.
+ */
+export async function getOverallTestReportsForStudent(
+  studentId: string
+): Promise<TestReportDetail[]> {
+  const reportIds = await prisma.testReportEntry.findMany({
+    where: { studentId },
+    select: { testReportId: true },
+    distinct: ["testReportId"],
+  });
+  if (reportIds.length === 0) return [];
+
+  const details = await Promise.all(
+    reportIds.map((r: { testReportId: string }) => getTestReportDetail(r.testReportId))
+  );
+
+  return (details.filter(Boolean) as TestReportDetail[]).sort((a, b) =>
+    a.createdAt < b.createdAt ? 1 : -1
+  );
+}
+
 /** A student's own results across every test report they appear in — never includes other students' data. */
 export async function getStudentTestReports(studentId: string): Promise<StudentTestReportRow[]> {
   const entries = await prisma.testReportEntry.findMany({
