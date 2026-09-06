@@ -6,7 +6,10 @@ import type {
   TestReportEntryRow,
   StudentTestReportRow,
   ScoreDistributionBucket,
+  TestReportType,
+  TestTypeProgress,
 } from "@/types/test-reports";
+import { TEST_REPORT_TYPES } from "@/types/test-reports";
 
 function toEntryRow(e: {
   id: string;
@@ -56,6 +59,7 @@ export async function getTestReportsForAdmin(): Promise<TestReportSummary[]> {
     return {
       id: r.id,
       title: r.title,
+      testType: r.testType as TestReportType,
       createdAt: formatISODate(r.createdAt),
       passingPercentage: r.passingPercentage,
       courseId: r.courseId,
@@ -117,6 +121,7 @@ export async function getTestReportDetail(id: string): Promise<TestReportDetail 
   return {
     id: report.id,
     title: report.title,
+    testType: report.testType as TestReportType,
     createdAt: formatISODate(report.createdAt),
     passingPercentage: report.passingPercentage,
     courseId: report.courseId,
@@ -174,6 +179,7 @@ export async function getStudentTestReports(studentId: string): Promise<StudentT
         select: {
           id: true,
           title: true,
+          testType: true,
           createdAt: true,
           _count: { select: { entries: true } },
         },
@@ -185,6 +191,7 @@ export async function getStudentTestReports(studentId: string): Promise<StudentT
   return entries.map((e: (typeof entries)[number]) => ({
     testReportId: e.testReport.id,
     title: e.testReport.title,
+    testType: e.testReport.testType as TestReportType,
     createdAt: formatISODate(e.testReport.createdAt),
     rank: e.rank,
     totalStudents: e.testReport._count.entries,
@@ -194,4 +201,55 @@ export async function getStudentTestReports(studentId: string): Promise<StudentT
     timeRaw: e.timeRaw,
     status: e.status as StudentTestReportRow["status"],
   }));
+}
+
+/**
+ * A student's progress broken out separately by test type (Daily/Weekly/
+ * Module/Mock), instead of one trend mixing every type together — different
+ * test types have different scope and difficulty, so averaging or charting
+ * them as a single line makes the line swing around for reasons that have
+ * nothing to do with the student actually improving or not.
+ */
+export async function getTestTypeProgressForStudent(
+  studentId: string
+): Promise<TestTypeProgress[]> {
+  const entries = await prisma.testReportEntry.findMany({
+    where: { studentId },
+    include: {
+      testReport: { select: { title: true, testType: true, createdAt: true } },
+    },
+    orderBy: { testReport: { createdAt: "asc" } },
+  });
+
+  return TEST_REPORT_TYPES.map(({ value, label }) => {
+    const forType = entries.filter(
+      (e: (typeof entries)[number]) => e.testReport.testType === value
+    );
+    const testsTaken = forType.length;
+    const averagePercentage =
+      testsTaken > 0
+        ? Math.round(
+            (forType.reduce((sum: number, e: (typeof forType)[number]) => sum + e.percentage, 0) /
+              testsTaken) *
+              10
+          ) / 10
+        : 0;
+    const passCount = forType.filter(
+      (e: (typeof forType)[number]) => e.status === "PASS"
+    ).length;
+
+    return {
+      testType: value,
+      label,
+      testsTaken,
+      averagePercentage,
+      latestPercentage: testsTaken > 0 ? forType[testsTaken - 1]!.percentage : null,
+      passRate: testsTaken > 0 ? Math.round((passCount / testsTaken) * 1000) / 10 : 0,
+      trend: forType.map((e: (typeof forType)[number]) => ({
+        label: e.testReport.title,
+        date: formatISODate(e.testReport.createdAt),
+        percentage: Math.round(e.percentage),
+      })),
+    };
+  });
 }
