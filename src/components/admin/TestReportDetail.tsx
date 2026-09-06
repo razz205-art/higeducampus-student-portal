@@ -3,6 +3,7 @@ import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import Badge from "@/components/ui/Badge";
 import TestReportScoreChart from "@/components/results/TestReportScoreChart";
 import { formatTimeRaw } from "@/lib/utils/date";
+import { TEST_REPORT_TYPES } from "@/types/test-reports";
 import type { TestReportDetail as TestReportDetailData } from "@/types/test-reports";
 
 function StatCard({ label, value }: { label: string; value: string }) {
@@ -18,7 +19,12 @@ export default function TestReportDetail({ report }: { report: TestReportDetailD
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-2xl font-semibold text-ink-900">{report.title}</h1>
+        <h1 className="flex items-center gap-2 font-serif text-2xl font-semibold text-ink-900">
+          {report.title}
+          <span className="rounded-sm bg-ink-900/5 px-2 py-0.5 text-xs font-normal text-ink-900/60">
+            {TEST_REPORT_TYPES.find((t) => t.value === report.testType)?.label ?? report.testType}
+          </span>
+        </h1>
         <p className="mt-1 text-sm text-ink-900/50">{report.courseCode} — {report.courseName} · {report.batchName} · {report.createdAt}</p>
       </div>
 
