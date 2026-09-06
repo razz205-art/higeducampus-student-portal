@@ -2,14 +2,24 @@ import { ClipboardList, CheckCircle2, TrendingUp } from "lucide-react";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import Badge from "@/components/ui/Badge";
 import { formatTimeRaw } from "@/lib/utils/date";
+import { TEST_REPORT_TYPES } from "@/types/test-reports";
 import type { StudentTestReportRow } from "@/types/test-reports";
+
+function typeLabel(t: StudentTestReportRow["testType"]): string {
+  return TEST_REPORT_TYPES.find((x) => x.value === t)?.label ?? t;
+}
 
 function Row({ row }: { row: StudentTestReportRow }) {
   return (
     <div className="rounded-sm border border-ink-900/10 bg-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="font-medium text-ink-900">{row.title}</p>
+          <p className="flex items-center gap-1.5 font-medium text-ink-900">
+            {row.title}
+            <span className="rounded-sm bg-ink-900/5 px-1.5 py-0.5 text-xs font-normal text-ink-900/60">
+              {typeLabel(row.testType)}
+            </span>
+          </p>
           <p className="mt-0.5 text-xs text-ink-900/45">{row.createdAt}</p>
         </div>
         <Badge variant={row.status === "PASS" ? "success" : "warning"}>
