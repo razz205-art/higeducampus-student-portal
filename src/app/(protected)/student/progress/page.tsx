@@ -15,6 +15,7 @@ import {
   getMonthlyActivity,
   getAchievements,
 } from "@/lib/data/progress";
+import { getTestTypeProgressForStudent } from "@/lib/data/test-reports";
 import StatCard from "@/components/dashboard/cards/StatCard";
 import CourseProgressCard from "@/components/dashboard/cards/CourseProgressCard";
 import CourseFilterBar from "@/components/dashboard/CourseFilterBar";
@@ -23,6 +24,7 @@ import QuizPerformanceCard from "@/components/progress/QuizPerformanceCard";
 import StreakCard from "@/components/progress/StreakCard";
 import AchievementsBadgesCard from "@/components/progress/AchievementsBadgesCard";
 import ActivityChart from "@/components/charts/ActivityChart";
+import TestTypeProgress from "@/components/student/TestTypeProgress";
 
 export const metadata = { title: "Progress" };
 
@@ -55,6 +57,7 @@ export default async function StudentProgressPage({
     monthly,
     achievements,
     moduleProgress,
+    testTypeProgress,
   ] = await Promise.all([
     getOverallProgress(studentId),
     getClassesSummary(studentId),
@@ -66,6 +69,7 @@ export default async function StudentProgressPage({
     getMonthlyActivity(studentId),
     getAchievements(studentId),
     courseId ? getModuleProgress(studentId, courseId) : Promise.resolve([]),
+    getTestTypeProgressForStudent(studentId),
   ]);
 
   return (
@@ -99,6 +103,8 @@ export default async function StudentProgressPage({
           </div>
 
           <QuizPerformanceCard rows={quizPerformance} />
+
+          <TestTypeProgress data={testTypeProgress} />
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <ActivityChart title="Weekly Activity" icon={Layers} data={weekly} />
