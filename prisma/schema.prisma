@@ -627,14 +627,22 @@ model SemesterCourseResult {
   @@index([semesterResultId])
   @@map("semester_course_results")
 }
+enum TestReportType {
+  DAILY
+  WEEKLY
+  MODULE
+  MOCK
+}
+
 model TestReport {
-  id                String   @id @default(cuid())
+  id                String         @id @default(cuid())
   title             String
+  testType          TestReportType @default(WEEKLY) // existing reports default here; admin should re-check older ones
   courseId          String
   batchId           String
-  passingPercentage Float    @default(60)
+  passingPercentage Float          @default(60)
   createdById       String
-  createdAt         DateTime @default(now())
+  createdAt         DateTime       @default(now())
 
   course    Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
   batch     Batch             @relation(fields: [batchId], references: [id], onDelete: Cascade)
@@ -644,6 +652,7 @@ model TestReport {
   @@index([createdAt])
   @@index([courseId])
   @@index([batchId])
+  @@index([testType])
   @@map("test_reports")
 
 }
