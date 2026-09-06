@@ -60,11 +60,12 @@ export async function getStudentDashboardData(userId: string): Promise<StudentDa
     getStudentCourses(userId),
   ]);
 
-  // Upcoming classes: this week's remaining slots, soonest first.
+  // Upcoming classes: this week's remaining slots, soonest first — exam
+  // sessions are flagged separately and shown under Upcoming Exams instead.
   const week = projectWeek(timetableSlots, getWeekStartUTC(todayUTC()));
   const upcomingClasses = week
     .flatMap((day) => day.classes)
-    .filter((c) => c.status !== "completed")
+    .filter((c) => c.status !== "completed" && !c.isExam)
     .slice(0, 4)
     .map((c) => ({
       id: c.id,
@@ -75,13 +76,35 @@ export async function getStudentDashboardData(userId: string): Promise<StudentDa
       location: c.location ?? (c.meetingLink ? "Online" : "TBA"),
     }));
 
-  const upcomingExams = activeExams.slice(0, 4).map((e) => ({
+  // Upcoming exams: merges exam-flagged timetable sessions (course tests set
+  // up the same way as a regular class) with standalone Exam countdown
+  // entries (big external exams like CUET PG), sorted together by date so
+  // the nearest exam always shows first regardless of which source it's
+  // from — this is what actually populates the card automatically instead
+  // of requiring a separate manual Exam entry for every course test.
+  const timetableExamItems = week
+    .flatMap((day) => day.classes)
+    .filter((c) => c.isExam && c.status !== "completed")
+    .map((c) => ({
+      id: c.id,
+      courseName: `${c.courseCode} — ${c.courseName}`,
+      examType: c.topic ?? "Exam",
+      sortKey: `${c.date}T${c.startTime}:00`,
+      date: formatDayLabel(parseISODate(c.date)),
+      time: `${c.startTime} – ${c.endTime}`,
+    }));
+  const countdownExamItems = activeExams.map((e) => ({
     id: e.id,
     courseName: e.title,
     examType: "Exam",
+    sortKey: e.examDate,
     date: formatExamDate(e.examDate),
     time: formatExamTime(e.examDate),
   }));
+  const upcomingExams = [...timetableExamItems, ...countdownExamItems]
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+    .slice(0, 4)
+    .map(({ sortKey, ...rest }) => rest);
 
   // Pending assignments: assignments in enrolled courses the student hasn't submitted yet.
   const courseIds = courses.map((c) => c.id);
@@ -174,7 +197,7 @@ export async function getStudentDashboardData(userId: string): Promise<StudentDa
       attendancePercent: attendanceSummary.percentage,
       overallProgressPercent: overallProgress.percentage,
       pendingAssignmentsCount: Math.max(assignmentsSummary.total - assignmentsSummary.completed, 0),
-      upcomingExamsCount: activeExams.length,
+      upcomingExamsCount: timetableExamItems.length + countdownExamItems.length,
     },
     courseProgress: subjectProgress,
     performance: performanceTrend.map((p) => ({ label: p.label, score: p.percentage })),
