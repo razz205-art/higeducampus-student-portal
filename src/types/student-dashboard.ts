@@ -27,9 +27,12 @@ export interface ScheduleItem {
   id: string;
   courseName: string;
   instructor: string;
+  topic: string | null;
   day: string;
+  date: string;
   time: string;
   location: string;
+  meetingLink: string | null;
 }
 
 export interface ExamItem {
