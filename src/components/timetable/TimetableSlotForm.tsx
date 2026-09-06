@@ -41,6 +41,7 @@ export default function TimetableSlotForm({
   const [endTime, setEndTime] = useState(initial?.endTime ?? "10:00");
   const [location, setLocation] = useState(initial?.location ?? "");
   const [meetingLink, setMeetingLink] = useState(initial?.meetingLink ?? "");
+  const [isExam, setIsExam] = useState(initial?.isExam ?? false);
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -69,6 +70,7 @@ export default function TimetableSlotForm({
       endTime,
       location: location || undefined,
       meetingLink: meetingLink || undefined,
+      isExam,
     };
 
     startTransition(async () => {
@@ -148,6 +150,22 @@ export default function TimetableSlotForm({
             onChange={(e) => setTopic(e.target.value)}
             placeholder="e.g. Chapter 4: Cognitive Development"
           />
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="flex items-center gap-2 text-sm font-medium text-ink-800">
+            <input
+              type="checkbox"
+              checked={isExam}
+              onChange={(e) => setIsExam(e.target.checked)}
+              className="h-4 w-4 rounded-sm border-ink-900/25 text-gold-500 focus:ring-gold-500"
+            />
+            This is an exam
+          </label>
+          <p className="mt-1 text-xs text-ink-900/40">
+            Shows this class under &quot;Upcoming Exams&quot; on the student dashboard instead of
+            &quot;Upcoming Classes&quot;.
+          </p>
         </div>
 
         <div>
