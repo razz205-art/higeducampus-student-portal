@@ -107,8 +107,8 @@ export default async function StudentProgressPage({
           <TestTypeProgress data={testTypeProgress} />
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <ActivityChart title="Weekly Activity" data={weekly} />
-            <ActivityChart title="Monthly Activity" data={monthly} />
+            <ActivityChart title="Weekly Activity" icon="Layers" data={weekly} />
+            <ActivityChart title="Monthly Activity" icon="Layers" data={monthly} />
           </div>
         </div>
 
