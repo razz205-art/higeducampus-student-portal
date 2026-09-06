@@ -273,6 +273,7 @@ const publishRowSchema = z.object({
 
 const publishTestReportSchema = z.object({
   title: z.string().trim().min(2, "Enter a title for this test.").max(80),
+  testType: z.enum(["DAILY", "WEEKLY", "MODULE", "MOCK"]),
   courseId: z.string().min(1, "Choose a course."),
   batchId: z.string().min(1, "Choose a batch."),
   passingPercentage: z.coerce.number().min(0).max(100),
@@ -292,11 +293,12 @@ export async function publishTestReportAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { title, courseId, batchId, passingPercentage, rows } = parsed.data;
+  const { title, testType, courseId, batchId, passingPercentage, rows } = parsed.data;
 
   await prisma.testReport.create({
     data: {
       title,
+      testType,
       courseId,
       batchId,
       passingPercentage,
