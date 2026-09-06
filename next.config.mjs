@@ -35,7 +35,10 @@ const nextConfig = {
       "/api/attendance/report/course": ["./node_modules/pdfkit/js/data/**/*"],
       "/api/results/report": ["./node_modules/pdfkit/js/data/**/*"],
       "/api/analytics/report": ["./node_modules/pdfkit/js/data/**/*"],
-      "/api/test-reports/[id]/pdf": ["./node_modules/pdfkit/js/data/**/*"],
+           "/api/test-reports/[id]/pdf": [
+        "./node_modules/pdfkit/js/data/**/*",
+        "./public/hig-educampus-logo.png",
+      ],
       "/api/certificates/[id]/download": ["./node_modules/pdfkit/js/data/**/*"],
     },
   },
