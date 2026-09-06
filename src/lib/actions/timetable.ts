@@ -30,6 +30,7 @@ const slotSchema = z
     endTime: z.string().regex(timeRegex, "Use 24-hour HH:MM format."),
     location: z.string().trim().max(120).optional(),
     meetingLink: z.union([z.string().trim().url("Enter a valid URL."), z.literal("")]).optional(),
+    recordingUrl: z.union([z.string().trim().url("Enter a valid URL."), z.literal("")]).optional(),
     isExam: z.boolean().optional().default(false),
   })
   .refine((data) => data.startTime < data.endTime, {
@@ -50,7 +51,7 @@ export async function createTimetableSlotAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { courseId, batchId, topic, specificDate, dayOfWeek, startTime, endTime, location, meetingLink, isExam } =
+  const { courseId, batchId, topic, specificDate, dayOfWeek, startTime, endTime, location, meetingLink, recordingUrl, isExam } =
     parsed.data;
 
   await prisma.timetableSlot.create({
@@ -64,6 +65,7 @@ export async function createTimetableSlotAction(
       endTime,
       location: location || null,
       meetingLink: meetingLink || null,
+      recordingUrl: recordingUrl || null,
       isExam,
       createdById: session.user.id,
     },
@@ -102,6 +104,7 @@ export async function updateTimetableSlotAction(
     endTime,
     location,
     meetingLink,
+    recordingUrl,
     isExam,
   } = parsed.data;
 
@@ -118,6 +121,7 @@ export async function updateTimetableSlotAction(
         endTime,
         location: location || null,
         meetingLink: meetingLink || null,
+        recordingUrl: recordingUrl || null,
         isExam,
       },
     });
