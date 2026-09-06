@@ -14,7 +14,8 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
 import Badge from "@/components/ui/Badge";
-import type { TestReportSummary } from "@/types/test-reports";
+import type { TestReportSummary, TestReportType } from "@/types/test-reports";
+import { TEST_REPORT_TYPES } from "@/types/test-reports";
 import type { CourseOption, BatchOption } from "@/types/attendance";
 
 const MATCH_LABEL: Record<TestReportPreviewRow["matchStatus"], string> = {
@@ -34,6 +35,7 @@ function UploadForm({
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
+  const [testType, setTestType] = useState<TestReportType>("WEEKLY");
   const [courseId, setCourseId] = useState(courses[0]?.id ?? "");
   const [batchId, setBatchId] = useState(batches[0]?.id ?? "");
   const [passingPercentage, setPassingPercentage] = useState("60");
@@ -82,6 +84,7 @@ function UploadForm({
     startPublishTransition(async () => {
       const res = await publishTestReportAction({
         title,
+        testType,
         courseId,
         batchId,
         passingPercentage: Number(passingPercentage),
@@ -141,6 +144,25 @@ function UploadForm({
           placeholder="e.g. Weekly Test 1"
           required
         />
+
+        <div>
+          <label htmlFor="testType" className="mb-1.5 block text-sm font-medium text-ink-800">
+            Test type
+          </label>
+          <select
+            id="testType"
+            value={testType}
+            onChange={(e) => setTestType(e.target.value as TestReportType)}
+            required
+            className="w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+          >
+            {TEST_REPORT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <div>
           <label htmlFor="courseId" className="mb-1.5 block text-sm font-medium text-ink-800">
@@ -292,6 +314,10 @@ function UploadForm({
   );
 }
 
+function testTypeLabel(t: TestReportType): string {
+  return TEST_REPORT_TYPES.find((x) => x.value === t)?.label ?? t;
+}
+
 function Row({ report }: { report: TestReportSummary }) {
   const [isPending, startTransition] = useTransition();
 
@@ -305,7 +331,12 @@ function Row({ report }: { report: TestReportSummary }) {
   return (
     <tr>
       <td className="px-5 py-3">
-        <p className="font-medium text-ink-900">{report.title}</p>
+        <p className="flex items-center gap-1.5 font-medium text-ink-900">
+          {report.title}
+          <span className="rounded-sm bg-ink-900/5 px-1.5 py-0.5 text-xs font-normal text-ink-900/60">
+            {testTypeLabel(report.testType)}
+          </span>
+        </p>
         <p className="text-xs text-ink-900/45">
           {report.courseCode} · {report.batchName} · {report.createdAt}
         </p>
