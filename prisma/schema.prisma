@@ -52,6 +52,7 @@ model User {
   lessonCompletions     LessonCompletion[]
   quizAttempts          QuizAttempt[]
   assignmentSubmissions AssignmentSubmission[]
+  sessionCompletions    SessionCompletion[]
 
   // Exam countdown module
   createdExams Exam[] @relation("ExamCreatedBy")
@@ -568,18 +569,48 @@ model TimetableSlot {
   endTime     String // "HH:MM", 24-hour
    location    String?
   meetingLink String?
+  recordingUrl String? // a prep video students should watch before the live session — separate from meetingLink
   isActive    Boolean  @default(true)
   isExam      Boolean  @default(false) // when true, surfaced in "Upcoming Exams" instead of/alongside "Upcoming Classes"
   createdById String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  batch     Batch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
-  createdBy User   @relation("TimetableCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  course      Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  batch       Batch?               @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  createdBy   User                 @relation("TimetableCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  completions SessionCompletion[]
   @@index([courseId])
   @@index([dayOfWeek])
   @@map("timetable_slots")
+}
+
+enum SessionCompletionKind {
+  LIVE
+  RECORDING
+  TEST
+}
+
+// Tracks a student's own completion of a specific occurrence of a
+// timetable session — one row per (student, slot, date, kind), since a
+// single slot can have both a recording-watched signal and a
+// live-attended signal for the same date, and they're meaningfully
+// different even though both may also write into AttendanceRecord (the
+// existing attendance system) as PRESENT for LIVE/TEST kinds specifically.
+model SessionCompletion {
+  id              String                @id @default(cuid())
+  studentId       String
+  timetableSlotId String
+  date            DateTime              @db.Date
+  kind            SessionCompletionKind
+  completedAt     DateTime              @default(now())
+
+  student User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  slot    TimetableSlot @relation(fields: [timetableSlotId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, timetableSlotId, date, kind])
+  @@index([studentId])
+  @@map("session_completions")
 }
 
 // Results module — Internal Results and Mock Tests are read from the
