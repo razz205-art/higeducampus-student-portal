@@ -16,6 +16,7 @@ export interface TimetableSlotItem {
   location: string | null;
   meetingLink: string | null;
   isActive: boolean;
+  isExam: boolean; // flags this as an exam session, shown in "Upcoming Exams" instead of "Upcoming Classes"
 }
 
 /** A slot projected onto one real calendar date, with a computed status. */
