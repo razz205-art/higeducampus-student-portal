@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { ApexOptions } from "apexcharts";
-import type { LucideIcon } from "lucide-react";
+import { Layers } from "lucide-react";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import type { ActivityPoint } from "@/types/progress";
 
@@ -12,11 +12,9 @@ const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 export default function ActivityChart({
   title,
-  icon,
   data,
 }: {
   title: string;
-  icon: LucideIcon;
   data: ActivityPoint[];
 }) {
   const options: ApexOptions = {
@@ -41,7 +39,7 @@ export default function ActivityChart({
   const series = [{ name: "Activity", data: data.map((d) => d.count) }];
 
   return (
-    <DashboardCard title={title} icon={icon}>
+    <DashboardCard title={title} icon={Layers}>
       <div className="h-56 w-full">
         <Chart options={options} series={series} type="bar" height="100%" width="100%" />
       </div>
