@@ -86,7 +86,19 @@ async function parseSpreadsheet(file: File): Promise<string[][]> {
   worksheet.eachRow((row) => {
     const cells: string[] = [];
     row.eachCell({ includeEmpty: true }, (cell) => {
-      cells.push(cell.text ?? "");
+      const v = cell.value;
+      if (v instanceof Date) {
+        // Excel duration/time cells (e.g. a "time taken" column formatted
+        // as HH:MM:SS) decode to a Date anchored at Excel's 1899 epoch.
+        // cell.text falls back to Date#toString() for these instead of a
+        // clean clock time, so read the wall-clock time directly instead.
+        const hh = String(v.getUTCHours()).padStart(2, "0");
+        const mm = String(v.getUTCMinutes()).padStart(2, "0");
+        const ss = String(v.getUTCSeconds()).padStart(2, "0");
+        cells.push(hh === "00" ? `${mm}:${ss}` : `${hh}:${mm}:${ss}`);
+      } else {
+        cells.push(cell.text ?? "");
+      }
     });
     rows.push(cells);
   });
