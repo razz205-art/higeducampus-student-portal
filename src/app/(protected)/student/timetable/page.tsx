@@ -25,6 +25,7 @@ export default async function StudentTimetablePage({
       slots={slots}
       searchParams={searchParams}
       subtitle="Your enrolled courses' weekly schedule."
+      studentId={session!.user.id}
     />
   );
 }
