@@ -41,6 +41,7 @@ export default function TimetableSlotForm({
   const [endTime, setEndTime] = useState(initial?.endTime ?? "10:00");
   const [location, setLocation] = useState(initial?.location ?? "");
   const [meetingLink, setMeetingLink] = useState(initial?.meetingLink ?? "");
+  const [recordingUrl, setRecordingUrl] = useState(initial?.recordingUrl ?? "");
   const [isExam, setIsExam] = useState(initial?.isExam ?? false);
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -70,6 +71,7 @@ export default function TimetableSlotForm({
       endTime,
       location: location || undefined,
       meetingLink: meetingLink || undefined,
+      recordingUrl: recordingUrl || undefined,
       isExam,
     };
 
@@ -238,6 +240,21 @@ export default function TimetableSlotForm({
             onChange={(e) => setMeetingLink(e.target.value)}
             placeholder="https://zoom.us/j/…"
           />
+        </div>
+
+        <div className="sm:col-span-2">
+          <Input
+            label="Recording link (optional)"
+            name="recordingUrl"
+            type="url"
+            value={recordingUrl}
+            onChange={(e) => setRecordingUrl(e.target.value)}
+            placeholder="https://…"
+          />
+          <p className="mt-1 text-xs text-ink-900/40">
+            A prep video students should watch before this live session. Shown as &quot;Watch
+            recording&quot; with its own &quot;mark as watched&quot; checkbox.
+          </p>
         </div>
       </div>
 
