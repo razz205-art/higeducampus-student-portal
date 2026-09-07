@@ -1,12 +1,21 @@
 import { prisma } from "@/lib/db/prisma";
 import { getStudentCourses, getFacultyCourses } from "@/lib/data/attendance";
-import { formatISODate, toDateOnlyUTC, daysInMonth, addDaysUTC } from "@/lib/utils/date";
+import {
+  formatISODate,
+  toDateOnlyUTC,
+  daysInMonth,
+  addDaysUTC,
+  parseISODate,
+  todayUTC,
+} from "@/lib/utils/date";
 import type {
   TimetableSlotItem,
   ProjectedClass,
   StudentProjectedClass,
   ClassStatus,
   CalendarDay,
+  RecordingStats,
+  RecordingCourseStats,
 } from "@/types/timetable";
 
 function toItem(s: {
@@ -214,4 +223,61 @@ export async function enrichClassesWithCompletions(
     recordingWatched: done.has(key(c.id, c.date, "RECORDING")),
     testAttended: done.has(key(c.id, c.date, "TEST")),
   }));
+}
+
+/**
+ * A student's overall recorded-session watch progress, separate from live
+ * or test attendance. "Eligible" slots are ones with a recording attached
+ * that have already become available — a one-time class only counts once
+ * its date has arrived, but a recurring weekly class is treated as always
+ * available since it repeats. Completion is tracked per slot (not per
+ * weekly occurrence), since a prep recording is fixed content meant to be
+ * watched once, not re-marked every week it recurs.
+ */
+export async function getRecordingWatchStats(studentId: string): Promise<RecordingStats> {
+  const slots = await getStudentTimetableSlots(studentId);
+  const today = todayUTC();
+
+  const eligible = slots.filter((s) => {
+    if (!s.recordingUrl) return false;
+    if (s.specificDate) return parseISODate(s.specificDate).getTime() <= today.getTime();
+    return true;
+  });
+
+  if (eligible.length === 0) {
+    return { totalRecordings: 0, watchedRecordings: 0, percentage: 0, perCourse: [] };
+  }
+
+  const slotIds = eligible.map((s) => s.id);
+  const watchedRows = await prisma.sessionCompletion.findMany({
+    where: { studentId, kind: "RECORDING", timetableSlotId: { in: slotIds } },
+    select: { timetableSlotId: true },
+    distinct: ["timetableSlotId"],
+  });
+  const watchedSet = new Set(watchedRows.map((w) => w.timetableSlotId));
+
+  const perCourseMap = new Map<string, RecordingCourseStats>();
+  eligible.forEach((s) => {
+    const entry = perCourseMap.get(s.courseId) ?? {
+      courseId: s.courseId,
+      courseCode: s.courseCode,
+      courseName: s.courseName,
+      total: 0,
+      watched: 0,
+    };
+    entry.total += 1;
+    if (watchedSet.has(s.id)) entry.watched += 1;
+    perCourseMap.set(s.courseId, entry);
+  });
+
+  const totalRecordings = eligible.length;
+  const watchedRecordings = eligible.filter((s) => watchedSet.has(s.id)).length;
+
+  return {
+    totalRecordings,
+    watchedRecordings,
+    percentage:
+      totalRecordings > 0 ? Math.round((watchedRecordings / totalRecordings) * 100) : 0,
+    perCourse: Array.from(perCourseMap.values()),
+  };
 }
