@@ -16,6 +16,7 @@ import {
   getAchievements,
 } from "@/lib/data/progress";
 import { getTestTypeProgressForStudent } from "@/lib/data/test-reports";
+import { getRecordingWatchStats } from "@/lib/data/timetable";
 import StatCard from "@/components/dashboard/cards/StatCard";
 import CourseProgressCard from "@/components/dashboard/cards/CourseProgressCard";
 import CourseFilterBar from "@/components/dashboard/CourseFilterBar";
@@ -25,6 +26,7 @@ import StreakCard from "@/components/progress/StreakCard";
 import AchievementsBadgesCard from "@/components/progress/AchievementsBadgesCard";
 import ActivityChart from "@/components/charts/ActivityChart";
 import TestTypeProgress from "@/components/student/TestTypeProgress";
+import RecordingProgressCard from "@/components/student/RecordingProgressCard";
 
 export const metadata = { title: "Progress" };
 
@@ -58,6 +60,7 @@ export default async function StudentProgressPage({
     achievements,
     moduleProgress,
     testTypeProgress,
+    recordingStats,
   ] = await Promise.all([
     getOverallProgress(studentId),
     getClassesSummary(studentId),
@@ -70,6 +73,7 @@ export default async function StudentProgressPage({
     getAchievements(studentId),
     courseId ? getModuleProgress(studentId, courseId) : Promise.resolve([]),
     getTestTypeProgressForStudent(studentId),
+    getRecordingWatchStats(studentId),
   ]);
 
   return (
@@ -105,6 +109,8 @@ export default async function StudentProgressPage({
           <QuizPerformanceCard rows={quizPerformance} />
 
           <TestTypeProgress data={testTypeProgress} />
+
+          <RecordingProgressCard stats={recordingStats} />
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <ActivityChart title="Weekly Activity" icon="Layers" data={weekly} />
