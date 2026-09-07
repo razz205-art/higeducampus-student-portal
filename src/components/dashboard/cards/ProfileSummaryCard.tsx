@@ -42,11 +42,11 @@ export default function ProfileSummaryCard({
             </span>
             <span className="flex items-center gap-1.5">
               <GraduationCap size={15} aria-hidden="true" />
-              {profile.program}
+              {profile.courses.length > 0 ? profile.courses.join(", ") : profile.program}
             </span>
             <span className="flex items-center gap-1.5">
               <Layers size={15} aria-hidden="true" />
-              Batch {profile.batch}
+              {profile.batchName !== "—" ? profile.batchName : `Batch ${profile.batch}`}
             </span>
           </div>
         </div>
