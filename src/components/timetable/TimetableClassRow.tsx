@@ -96,7 +96,8 @@ export default function TimetableClassRow({ item }: { item: ProjectedClass | Stu
           </span>
         )}
         {item.meetingLink && !item.isExam && (
-          <a href={item.meetingLink}
+          <a
+            href={item.meetingLink}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => student && mark("LIVE")}
@@ -107,7 +108,8 @@ export default function TimetableClassRow({ item }: { item: ProjectedClass | Stu
           </a>
         )}
         {item.recordingUrl && (
-          <a href={item.recordingUrl}
+          <a
+            href={item.recordingUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 font-medium text-gold-600 hover:underline"
