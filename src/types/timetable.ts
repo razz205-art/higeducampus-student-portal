@@ -45,3 +45,28 @@ export interface CalendarDay {
   dayOfWeek: number;
   classCount: number;
 }
+
+/** Per-course breakdown of recorded-session watch completion. */
+export interface RecordingCourseStats {
+  courseId: string;
+  courseCode: string;
+  courseName: string;
+  total: number;
+  watched: number;
+}
+
+/**
+ * A student's overall progress watching recorded (prep) sessions across
+ * their enrolled courses — separate from live-class or test attendance,
+ * since watching a recording is self-paced completion, not a scheduled
+ * event. "Total" counts each distinct class slot that has a recording
+ * attached and has already become available (its class time has started
+ * or passed, or it's a recurring class); "watched" counts how many of
+ * those the student has marked as watched at least once.
+ */
+export interface RecordingStats {
+  totalRecordings: number;
+  watchedRecordings: number;
+  percentage: number;
+  perCourse: RecordingCourseStats[];
+}
