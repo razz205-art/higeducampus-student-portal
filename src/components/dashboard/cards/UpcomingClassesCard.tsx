@@ -33,7 +33,8 @@ export default function UpcomingClassesCard({ items }: { items: ScheduleItem[] }
                   {item.location}
                 </span>
                 {item.meetingLink && (
-                  <a href={item.meetingLink}
+                  <a
+                    href={item.meetingLink}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 font-medium text-gold-600 hover:underline"
