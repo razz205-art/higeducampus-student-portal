@@ -4,6 +4,7 @@ import { formatISODate, toDateOnlyUTC, daysInMonth, addDaysUTC } from "@/lib/uti
 import type {
   TimetableSlotItem,
   ProjectedClass,
+  StudentProjectedClass,
   ClassStatus,
   CalendarDay,
 } from "@/types/timetable";
@@ -19,6 +20,7 @@ function toItem(s: {
   endTime: string;
   location: string | null;
   meetingLink: string | null;
+  recordingUrl: string | null;
   isActive: boolean;
   isExam: boolean;
   course: { code: string; name: string; faculty: { name: string | null; email: string } };
@@ -39,6 +41,7 @@ function toItem(s: {
     endTime: s.endTime,
     location: s.location,
     meetingLink: s.meetingLink,
+    recordingUrl: s.recordingUrl,
     isActive: s.isActive,
     isExam: s.isExam,
   };
@@ -176,4 +179,39 @@ export function projectMonthCounts(
     days.push({ date: dateStr, dayOfWeek, classCount: count });
   }
   return days;
+}
+
+// ---------------------------------------------------------------------------
+// Student self-completion: join-live / watch-recording / test-attendance.
+// ---------------------------------------------------------------------------
+
+/**
+ * Enriches already-projected classes with this student's own completion
+ * state (joined live / watched recording / self-marked test attendance)
+ * for each specific occurrence. Only ever called with the requesting
+ * student's own id — never exposes another student's completion data.
+ */
+export async function enrichClassesWithCompletions(
+  studentId: string,
+  classes: ProjectedClass[]
+): Promise<StudentProjectedClass[]> {
+  if (classes.length === 0) return [];
+
+  const slotIds = Array.from(new Set(classes.map((c) => c.id)));
+  const completions = await prisma.sessionCompletion.findMany({
+    where: { studentId, timetableSlotId: { in: slotIds } },
+    select: { timetableSlotId: true, date: true, kind: true },
+  });
+
+  const key = (slotId: string, date: string, kind: string) => `${slotId}|${date}|${kind}`;
+  const done = new Set(
+    completions.map((c) => key(c.timetableSlotId, formatISODate(c.date), c.kind))
+  );
+
+  return classes.map((c) => ({
+    ...c,
+    liveAttended: done.has(key(c.id, c.date, "LIVE")),
+    recordingWatched: done.has(key(c.id, c.date, "RECORDING")),
+    testAttended: done.has(key(c.id, c.date, "TEST")),
+  }));
 }
