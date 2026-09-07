@@ -32,7 +32,7 @@ export default function UpcomingClassesCard({ items }: { items: ScheduleItem[] }
                   <MapPin size={12} aria-hidden="true" />
                   {item.location}
                 </span>
-                               {item.meetingLink && (
+                {item.meetingLink && (
                   
                     href={item.meetingLink}
                     target="_blank"
