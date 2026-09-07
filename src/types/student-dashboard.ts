@@ -2,6 +2,8 @@ export interface StudentProfile {
   studentId: string;
   program: string;
   batch: string;
+  batchName: string;
+  courses: string[]; // e.g. "PGEP26 — CUET PG Psychology"
 }
 
 export interface StudentStats {
