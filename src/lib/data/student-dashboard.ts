@@ -195,6 +195,8 @@ export async function getStudentDashboardData(userId: string): Promise<StudentDa
       studentId: user?.registrationNumber ?? "—",
       program: "Student",
       batch: user?.batch ? `${user.batch.startYear} – ${user.batch.endYear}` : "—",
+      batchName: user?.batch?.name ?? "—",
+      courses: courses.map((c) => `${c.code} — ${c.name}`),
     },
     stats: {
       attendancePercent: attendanceSummary.percentage,
