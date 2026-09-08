@@ -115,6 +115,9 @@ export async function GET(req: NextRequest) {
     update: {},
   });
 
+  const forceResync = req.nextUrl.searchParams.get("resync") === "true";
+  const watermark = forceResync ? 0 : syncState.lastAttemptId;
+
   let token: string;
   try {
     token = await getTestpressToken();
@@ -124,7 +127,7 @@ export async function GET(req: NextRequest) {
 
   let newAttempts: TestpressAttempt[];
   try {
-    newAttempts = await fetchNewAttempts(token, syncState.lastAttemptId);
+    newAttempts = await fetchNewAttempts(token, watermark);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
@@ -234,5 +237,7 @@ export async function GET(req: NextRequest) {
     skippedExams,
     unmatchedEmails,
     newWatermark: highestAttemptId,
+    // TEMP DIAGNOSTIC — remove once matching is confirmed working:
+    portalCourseNames: allCourses.map((c) => c.name),
   });
 }
