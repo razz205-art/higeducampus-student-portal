@@ -58,7 +58,7 @@ export async function sendDailyScheduleNotifications(): Promise<DailyScheduleRes
     const existing = await prisma.notification.findFirst({
       where: {
         courseId,
-        category: "SCHEDULE_CHANGE",
+        category: "ANNOUNCEMENT",
         createdAt: { gte: dayStart, lt: dayEnd },
       },
       select: { id: true },
@@ -81,7 +81,7 @@ export async function sendDailyScheduleNotifications(): Promise<DailyScheduleRes
       data: {
         title: `Today's Schedule: ${first.courseCode}`,
         body: `Your ${first.courseCode} — ${first.courseName} schedule for today:\n\n${lines.join("\n")}`,
-        category: "SCHEDULE_CHANGE",
+        category: "ANNOUNCEMENT",
         courseId,
         createdById: systemAdmin.id,
       },
