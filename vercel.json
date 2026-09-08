@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/daily-schedule",
       "schedule": "30 1 * * *"
+    },
+    {
+      "path": "/api/cron/sync-testpress-results",
+      "schedule": "0 2 * * *"
     }
   ]
 }
