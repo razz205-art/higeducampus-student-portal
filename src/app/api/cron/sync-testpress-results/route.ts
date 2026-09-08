@@ -8,8 +8,16 @@ function isAdmin(role: string | undefined): boolean {
 
 const TESTPRESS_BASE = "https://login.higeducampus.in";
 const SYNC_STATE_KEY = "testpress-attempts";
-const DEFAULT_TEST_TYPE = "WEEKLY" as const;
 const DEFAULT_PASSING_PERCENTAGE = 60;
+
+function inferTestType(title: string): "DAILY" | "WEEKLY" | "MODULE" | "MOCK" {
+  const t = title.toLowerCase();
+  if (t.includes("daily")) return "DAILY";
+  if (t.includes("module")) return "MODULE";
+  if (t.includes("mock")) return "MOCK";
+  if (t.includes("weekly")) return "WEEKLY";
+  return "WEEKLY"; // fallback when the title gives no clue
+}
 
 type TestpressExam = {
   id: number;
@@ -225,7 +233,7 @@ export async function GET(req: NextRequest) {
       const report = await prisma.testReport.create({
         data: {
           title: exam.title,
-          testType: DEFAULT_TEST_TYPE,
+          testType: inferTestType(exam.title),
           courseId: matchedCourse.id,
           batchId,
           passingPercentage: DEFAULT_PASSING_PERCENTAGE,
