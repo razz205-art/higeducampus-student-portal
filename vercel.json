@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/sync-testpress-results",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/notify-test-ranks",
+      "schedule": "30 17 * * *"
     }
   ]
 }
