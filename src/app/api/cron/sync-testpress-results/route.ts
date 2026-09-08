@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { auth } from "@/lib/auth/auth";
+
+function isAdmin(role: string | undefined): boolean {
+  return role === "ACADEMIC_ADMIN" || role === "SUPER_ADMIN";
+}
 
 const TESTPRESS_BASE = "https://login.higeducampus.in";
 const SYNC_STATE_KEY = "testpress-attempts";
@@ -85,8 +90,14 @@ async function fetchExam(token: string, examId: number): Promise<TestpressExam |
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const hasValidCronSecret =
+    !!process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`;
+
+  if (!hasValidCronSecret) {
+    const session = await auth();
+    if (!session?.user || !isAdmin(session.user.role)) {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
   }
 
   const systemAdmin = await prisma.user.findFirst({
