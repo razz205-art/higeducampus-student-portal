@@ -17,10 +17,24 @@ export async function GET() {
   const password = process.env.TESTPRESS_ADMIN_PASSWORD;
 
   if (!username || !password) {
-    return new NextResponse(
-      "Missing TESTPRESS_ADMIN_USERNAME / TESTPRESS_ADMIN_PASSWORD env vars in Vercel.",
-      { status: 500 }
+    const diag: string[] = [];
+    diag.push("Missing TESTPRESS_ADMIN_USERNAME / TESTPRESS_ADMIN_PASSWORD env vars in Vercel.");
+    diag.push("");
+    diag.push("=== DIAGNOSTICS (no secret values shown) ===");
+    diag.push(`VERCEL_ENV: ${process.env.VERCEL_ENV ?? "(not set)"}`);
+    diag.push(`NODE_ENV: ${process.env.NODE_ENV ?? "(not set)"}`);
+    diag.push(`TESTPRESS_ADMIN_USERNAME present: ${"TESTPRESS_ADMIN_USERNAME" in process.env}`);
+    diag.push(`TESTPRESS_ADMIN_PASSWORD present: ${"TESTPRESS_ADMIN_PASSWORD" in process.env}`);
+    diag.push(`TESTPRESS_ADMIN_USERNAME length: ${username?.length ?? 0}`);
+    diag.push(`TESTPRESS_ADMIN_PASSWORD length: ${password?.length ?? 0}`);
+    const matchingKeys = Object.keys(process.env).filter((k) =>
+      k.toUpperCase().includes("TESTPRESS")
     );
+    diag.push(`All env keys containing "TESTPRESS" (any case): ${JSON.stringify(matchingKeys)}`);
+    return new NextResponse(diag.join("\n"), {
+      status: 500,
+      headers: { "Content-Type": "text/plain" },
+    });
   }
 
   const output: string[] = [];
