@@ -9,8 +9,11 @@ export const siteConfig = {
 };
 
 export const authConfigConstants = {
-  sessionMaxAgeSeconds: 8 * 60 * 60, // 8 hours
-  sessionUpdateAgeSeconds: 60 * 60, // refresh token every hour of activity
+  // 30 days, refreshed on activity (updateAge), so someone who uses the
+  // portal at least once a month stays signed in indefinitely — closing
+  // the browser no longer logs them out, only an explicit "Log out" does.
+  sessionMaxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+  sessionUpdateAgeSeconds: 24 * 60 * 60, // refresh the 30-day window once a day of activity
   maxFailedLoginAttempts: 5,
   accountLockDurationMs: 15 * 60 * 1000, // 15 minutes
   passwordResetTokenTtlMinutes: 30,
