@@ -8,6 +8,7 @@ function isAdmin(role: string | undefined): boolean {
 
 const TESTPRESS_BASE = "https://login.higeducampus.in";
 const SYNC_STATE_KEY = "testpress-attempts";
+const DEFAULT_COURSE_NAME = "HIG PSYCHOLOGY PG ENTRANCE COACHING 2026-27";
 const DEFAULT_TEST_TYPE = "WEEKLY" as const;
 const DEFAULT_PASSING_PERCENTAGE = 60;
 
@@ -144,7 +145,16 @@ export async function GET(req: NextRequest) {
     byExamId.set(attempt.exam_id, list);
   }
 
-  const allCourses = await prisma.course.findMany({ select: { id: true, name: true } });
+  const defaultCourse = await prisma.course.findFirst({
+    where: { name: DEFAULT_COURSE_NAME },
+    select: { id: true, name: true },
+  });
+  if (!defaultCourse) {
+    return NextResponse.json(
+      { error: `Default course "${DEFAULT_COURSE_NAME}" not found in portal.` },
+      { status: 500 }
+    );
+  }
 
   let reportsCreated = 0;
   let entriesCreated = 0;
@@ -158,13 +168,7 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    const matchedCourse = allCourses.find((c) =>
-      exam.title.toLowerCase().includes(c.name.toLowerCase())
-    );
-    if (!matchedCourse) {
-      skippedExams.push(exam.title);
-      continue;
-    }
+    const matchedCourse = defaultCourse;
 
     // Resolve each attempt to a student by email, then group by that
     // student's batch — a single exam can span students in different
@@ -237,7 +241,5 @@ export async function GET(req: NextRequest) {
     skippedExams,
     unmatchedEmails,
     newWatermark: highestAttemptId,
-    // TEMP DIAGNOSTIC — remove once matching is confirmed working:
-    portalCourseNames: allCourses.map((c) => c.name),
   });
 }
