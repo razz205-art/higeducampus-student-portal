@@ -791,3 +791,11 @@ model CourseFaculty {
   @@index([facultyId])
   @@map("course_faculty")
 }
+model TestpressSyncState {
+  id            String   @id @default(cuid())
+  key           String   @unique
+  lastAttemptId Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  @@map("testpress_sync_state")
+}
