@@ -158,34 +158,25 @@ export async function GET(req: NextRequest) {
     }
 
     // Only sync exams that were explicitly scheduled in the portal's
-    // Timetable as an exam slot — same title (topic), same date. This is
-    // the deliberate "opt-in per exam" control: nothing syncs unless the
-    // admin created a matching timetable entry for it first.
-    if (!exam.start_date) {
-      skippedExams.push(`${exam.title} (no start_date from Testpress to match against)`);
-      continue;
-    }
-    const examDateOnly = exam.start_date.slice(0, 10); // "YYYY-MM-DD"
-    // Testpress exam titles sometimes bake the date into the title itself
-    // (e.g. "Abnormal Psychology Part 1 Daily Test | 08-09-2026"). Strip
-    // that trailing "| DD-MM-YYYY" suffix before comparing to the
-    // timetable topic, since the date is matched separately via
-    // specificDate and shouldn't have to be duplicated in the topic text.
-    const examTitleForMatching = exam.title
-      .replace(/\s*\|\s*\d{1,2}-\d{1,2}-\d{4}\s*$/, "")
-      .trim();
+    // Timetable as a matching exam entry — this is the deliberate
+    // "opt-in per exam" control: nothing syncs unless the admin created
+    // a matching timetable entry (same title) for it first.
+    //
+    // Match purely on title (which the admin suffixes with a unique code
+    // like "| APDT01" on both Testpress and the timetable topic).
+    // Testpress's start_date reflects when the exam was originally
+    // created, not when it was actually administered — many exams are
+    // standing/reusable tests created years ago — so date-matching is
+    // unreliable and intentionally not used here.
     const matchedSlot = await prisma.timetableSlot.findFirst({
       where: {
         isExam: true,
-        topic: { equals: examTitleForMatching, mode: "insensitive" },
-        specificDate: new Date(`${examDateOnly}T00:00:00.000Z`),
+        topic: { equals: exam.title, mode: "insensitive" },
       },
       select: { courseId: true, batchId: true },
     });
     if (!matchedSlot) {
-      skippedExams.push(
-        `${exam.title} (no timetable exam entry with topic "${examTitleForMatching}" on ${examDateOnly})`
-      );
+      skippedExams.push(`${exam.title} (no timetable exam entry with matching topic)`);
       continue;
     }
 
