@@ -8,13 +8,13 @@ function isAdmin(role: string | undefined): boolean {
 
 const TESTPRESS_BASE = "https://login.higeducampus.in";
 const SYNC_STATE_KEY = "testpress-attempts";
-const DEFAULT_COURSE_NAME = "HIG PSYCHOLOGY PG ENTRANCE COACHING 2026-27";
 const DEFAULT_TEST_TYPE = "WEEKLY" as const;
 const DEFAULT_PASSING_PERCENTAGE = 60;
 
 type TestpressExam = {
   id: number;
   title: string;
+  start_date: string | null;
 };
 
 type TestpressAttempt = {
@@ -145,17 +145,6 @@ export async function GET(req: NextRequest) {
     byExamId.set(attempt.exam_id, list);
   }
 
-  const defaultCourse = await prisma.course.findFirst({
-    where: { name: DEFAULT_COURSE_NAME },
-    select: { id: true, name: true },
-  });
-  if (!defaultCourse) {
-    return NextResponse.json(
-      { error: `Default course "${DEFAULT_COURSE_NAME}" not found in portal.` },
-      { status: 500 }
-    );
-  }
-
   let reportsCreated = 0;
   let entriesCreated = 0;
   const skippedExams: string[] = [];
@@ -168,7 +157,30 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    const matchedCourse = defaultCourse;
+    // Only sync exams that were explicitly scheduled in the portal's
+    // Timetable as an exam slot — same title (topic), same date. This is
+    // the deliberate "opt-in per exam" control: nothing syncs unless the
+    // admin created a matching timetable entry for it first.
+    if (!exam.start_date) {
+      skippedExams.push(`${exam.title} (no start_date from Testpress to match against)`);
+      continue;
+    }
+    const examDateOnly = exam.start_date.slice(0, 10); // "YYYY-MM-DD"
+    const matchedSlot = await prisma.timetableSlot.findFirst({
+      where: {
+        isExam: true,
+        topic: { equals: exam.title, mode: "insensitive" },
+        specificDate: new Date(`${examDateOnly}T00:00:00.000Z`),
+      },
+      select: { courseId: true, batchId: true },
+    });
+    if (!matchedSlot) {
+      skippedExams.push(`${exam.title} (no matching timetable exam entry on ${examDateOnly})`);
+      continue;
+    }
+
+    const matchedCourse = { id: matchedSlot.courseId };
+    const fixedBatchId = matchedSlot.batchId; // null = not batch-restricted, group by each student's own batch
 
     // Resolve each attempt to a student by email, then group by that
     // student's batch — a single exam can span students in different
@@ -191,6 +203,12 @@ export async function GET(req: NextRequest) {
       const student = studentByEmail.get(attempt.email!.toLowerCase());
       if (!student || !student.batchId) {
         unmatchedEmails.push(attempt.email!);
+        continue;
+      }
+      // If the timetable slot was scoped to a specific batch, only accept
+      // attempts from students in that exact batch — others are skipped
+      // rather than silently grouped into the wrong report.
+      if (fixedBatchId && student.batchId !== fixedBatchId) {
         continue;
       }
       const list = byBatch.get(student.batchId) ?? [];
