@@ -20,7 +20,7 @@ type TestpressExam = {
 type TestpressAttempt = {
   id: number;
   exam_id: number;
-  email: string;
+  email: string | null;
   name: string;
   score: string;
   percentage: number;
@@ -172,8 +172,14 @@ export async function GET(req: NextRequest) {
 
     // Resolve each attempt to a student by email, then group by that
     // student's batch — a single exam can span students in different
-    // batches, and TestReport requires one batchId per report.
-    const emails = attempts.map((a) => a.email.toLowerCase());
+    // batches, and TestReport requires one batchId per report. Some
+    // Testpress attempts have a null email (orphaned/anonymous accounts)
+    // and are treated as unmatched rather than crashing the sync.
+    const validAttempts = attempts.filter((a) => !!a.email);
+    for (const a of attempts) {
+      if (!a.email) unmatchedEmails.push(`(no email) attempt #${a.id}`);
+    }
+    const emails = validAttempts.map((a) => a.email!.toLowerCase());
     const students = await prisma.user.findMany({
       where: { email: { in: emails } },
       select: { id: true, email: true, batchId: true },
@@ -181,10 +187,10 @@ export async function GET(req: NextRequest) {
     const studentByEmail = new Map(students.map((s) => [s.email.toLowerCase(), s]));
 
     const byBatch = new Map<string, { attempt: TestpressAttempt; studentId: string }[]>();
-    for (const attempt of attempts) {
-      const student = studentByEmail.get(attempt.email.toLowerCase());
+    for (const attempt of validAttempts) {
+      const student = studentByEmail.get(attempt.email!.toLowerCase());
       if (!student || !student.batchId) {
-        unmatchedEmails.push(attempt.email);
+        unmatchedEmails.push(attempt.email!);
         continue;
       }
       const list = byBatch.get(student.batchId) ?? [];
