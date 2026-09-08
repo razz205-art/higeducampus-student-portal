@@ -166,16 +166,26 @@ export async function GET(req: NextRequest) {
       continue;
     }
     const examDateOnly = exam.start_date.slice(0, 10); // "YYYY-MM-DD"
+    // Testpress exam titles sometimes bake the date into the title itself
+    // (e.g. "Abnormal Psychology Part 1 Daily Test | 08-09-2026"). Strip
+    // that trailing "| DD-MM-YYYY" suffix before comparing to the
+    // timetable topic, since the date is matched separately via
+    // specificDate and shouldn't have to be duplicated in the topic text.
+    const examTitleForMatching = exam.title
+      .replace(/\s*\|\s*\d{1,2}-\d{1,2}-\d{4}\s*$/, "")
+      .trim();
     const matchedSlot = await prisma.timetableSlot.findFirst({
       where: {
         isExam: true,
-        topic: { equals: exam.title, mode: "insensitive" },
+        topic: { equals: examTitleForMatching, mode: "insensitive" },
         specificDate: new Date(`${examDateOnly}T00:00:00.000Z`),
       },
       select: { courseId: true, batchId: true },
     });
     if (!matchedSlot) {
-      skippedExams.push(`${exam.title} (no matching timetable exam entry on ${examDateOnly})`);
+      skippedExams.push(
+        `${exam.title} (no timetable exam entry with topic "${examTitleForMatching}" on ${examDateOnly})`
+      );
       continue;
     }
 
