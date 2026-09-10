@@ -226,39 +226,78 @@ export async function GET(req: NextRequest) {
     }
 
     for (const [batchId, group] of byBatch) {
-      const ranked = [...group].sort(
-        (a, b) => b.attempt.percentage - a.attempt.percentage
+      let report = await prisma.testReport.findFirst({
+        where: { title: exam.title, courseId: matchedCourse.id, batchId },
+        select: { id: true },
+      });
+
+      if (!report) {
+        report = await prisma.testReport.create({
+          data: {
+            title: exam.title,
+            testType: inferTestType(exam.title),
+            courseId: matchedCourse.id,
+            batchId,
+            passingPercentage: DEFAULT_PASSING_PERCENTAGE,
+            createdById: systemAdmin.id,
+          },
+        });
+        reportsCreated += 1;
+      } else {
+        // Reopen it for the new arrivals — a report that already had a
+        // rank-list notification sent should get re-notified once the
+        // newly merged students are added.
+        await prisma.testReport.update({
+          where: { id: report.id },
+          data: { notifiedAt: null },
+        });
+      }
+
+      const reportId: string = report.id;
+
+      // Merge: keep existing entries, skip students who already have one
+      // (their first synced attempt stands), add only genuinely new ones.
+      const existingEntries = await prisma.testReportEntry.findMany({
+        where: { testReportId: reportId },
+        select: { id: true, studentId: true, name: true, percentage: true, correct: true, incorrect: true, timeRaw: true, status: true },
+      });
+      const existingStudentIds = new Set(existingEntries.map((e) => e.studentId).filter(Boolean));
+
+      const newOnes = group.filter((item) => !existingStudentIds.has(item.studentId));
+      if (newOnes.length > 0) {
+        await prisma.testReportEntry.createMany({
+          data: newOnes.map((item) => ({
+            testReportId: reportId,
+            studentId: item.studentId,
+            name: item.attempt.name,
+            rank: 0, // placeholder — re-ranked below across the full combined list
+            percentage: item.attempt.percentage,
+            correct: item.attempt.correct_answers_count,
+            incorrect: item.attempt.incorrect_answers_count,
+            timeRaw: item.attempt.time_taken,
+            status:
+              item.attempt.percentage >= DEFAULT_PASSING_PERCENTAGE
+                ? "PASS"
+                : "NEEDS_IMPROVEMENT",
+          })),
+        });
+        entriesCreated += newOnes.length;
+      }
+
+      // Re-rank the full combined set (existing + newly added) by score.
+      const allEntries = await prisma.testReportEntry.findMany({
+        where: { testReportId: reportId },
+        select: { id: true, percentage: true },
+        orderBy: { percentage: "desc" },
+      });
+      await Promise.all(
+        allEntries.map((entry, index) =>
+          prisma.testReportEntry.update({
+            where: { id: entry.id },
+            data: { rank: index + 1 },
+          })
+        )
       );
-
-      const report = await prisma.testReport.create({
-        data: {
-          title: exam.title,
-          testType: inferTestType(exam.title),
-          courseId: matchedCourse.id,
-          batchId,
-          passingPercentage: DEFAULT_PASSING_PERCENTAGE,
-          createdById: systemAdmin.id,
-        },
-      });
-      reportsCreated += 1;
-
-      await prisma.testReportEntry.createMany({
-        data: ranked.map((item, index) => ({
-          testReportId: report.id,
-          studentId: item.studentId,
-          name: item.attempt.name,
-          rank: index + 1,
-          percentage: item.attempt.percentage,
-          correct: item.attempt.correct_answers_count,
-          incorrect: item.attempt.incorrect_answers_count,
-          timeRaw: item.attempt.time_taken,
-          status:
-            item.attempt.percentage >= DEFAULT_PASSING_PERCENTAGE
-              ? "PASS"
-              : "NEEDS_IMPROVEMENT",
-        })),
-      });
-      entriesCreated += ranked.length;
     }
   }
 
