@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { Plus, Trash2, Library } from "lucide-react";
 import {
   createMaterialAction,
@@ -40,6 +40,21 @@ function MaterialForm({
   );
 
   const chapters = chaptersByCourse[courseId] ?? [];
+
+  // The <select> below falls back to visually showing the first option
+  // when its controlled value doesn't match anything yet — but that's
+  // just a browser display quirk, not a real selection. Without this,
+  // moduleId stays "" even though a chapter looks selected, permanently
+  // disabling the submit button. Keep the actual state in sync with
+  // whatever's really shown.
+  useEffect(() => {
+    if (chapters.length > 0 && !chapters.some((c) => c.id === moduleId)) {
+      setModuleId(chapters[0].id);
+    } else if (chapters.length === 0 && moduleId) {
+      setModuleId("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courseId, chapters]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
