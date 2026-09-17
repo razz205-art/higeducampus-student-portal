@@ -1,5 +1,8 @@
+"use client";
+
 import { CalendarClock, MapPin, Video } from "lucide-react";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
+import { markSessionCompletionAction } from "@/lib/actions/session-completion";
 import type { ScheduleItem } from "@/types/student-dashboard";
 
 export default function UpcomingClassesCard({ items }: { items: ScheduleItem[] }) {
@@ -33,10 +36,10 @@ export default function UpcomingClassesCard({ items }: { items: ScheduleItem[] }
                   {item.location}
                 </span>
                 {item.meetingLink && (
-                  <a
-                    href={item.meetingLink}
+                  <a href={item.meetingLink}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => markSessionCompletionAction(item.id, item.isoDate, "LIVE")}
                     className="flex items-center gap-1 font-medium text-gold-600 hover:underline"
                   >
                     <Video size={12} aria-hidden="true" />
