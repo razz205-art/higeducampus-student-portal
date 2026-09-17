@@ -74,6 +74,7 @@ export async function getStudentDashboardData(userId: string): Promise<StudentDa
       topic: c.topic,
       day: formatDayLabel(parseISODate(c.date)),
       date: formatDisplayDate(parseISODate(c.date)),
+      isoDate: c.date,
       time: `${c.startTime} – ${c.endTime}`,
       location: c.location ?? (c.meetingLink ? "Online" : "TBA"),
       meetingLink: c.meetingLink,
