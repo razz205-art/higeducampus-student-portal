@@ -50,19 +50,31 @@ export async function markSessionCompletionAction(
   });
 
   if (kind === "LIVE" || kind === "TEST") {
-    await prisma.attendanceRecord.upsert({
+    // A faculty/admin's manual attendance entry must never be silently
+    // overwritten by a student's own self-mark — only write here if
+    // there's no existing record for the day, or the existing one was
+    // itself a prior self-mark (never FACULTY_ENTRY / ADMIN_CORRECTION).
+    const existing = await prisma.attendanceRecord.findUnique({
       where: { studentId_courseId_date: { studentId, courseId: slot.courseId, date: dateObj } },
-      update: { status: "PRESENT", source: "SELF_CHECKIN" },
-      create: {
-        studentId,
-        courseId: slot.courseId,
-        date: dateObj,
-        status: "PRESENT",
-        source: "SELF_CHECKIN",
-        markedById: studentId,
-        notes: kind === "LIVE" ? "Self-marked: joined live class" : "Self-marked: attended test",
-      },
+      select: { source: true },
     });
+
+    if (!existing || existing.source === "SELF_CHECKIN") {
+      await prisma.attendanceRecord.upsert({
+        where: { studentId_courseId_date: { studentId, courseId: slot.courseId, date: dateObj } },
+        update: { status: "PRESENT", source: "SELF_CHECKIN" },
+        create: {
+          studentId,
+          courseId: slot.courseId,
+          date: dateObj,
+          status: "PRESENT",
+          source: "SELF_CHECKIN",
+          markedById: studentId,
+          notes:
+            kind === "LIVE" ? "Self-marked: joined live class" : "Self-marked: attended test",
+        },
+      });
+    }
   }
 
   revalidatePath("/student/timetable");
