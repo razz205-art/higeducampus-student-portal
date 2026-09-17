@@ -32,6 +32,7 @@ export interface ScheduleItem {
   topic: string | null;
   day: string;
   date: string;
+  isoDate: string; // YYYY-MM-DD, for marking attendance when the join link is clicked
   time: string;
   location: string;
   meetingLink: string | null;
