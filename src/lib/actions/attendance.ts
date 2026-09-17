@@ -58,6 +58,7 @@ export async function markAttendanceAction(input: MarkAttendanceInput): Promise<
 
   const dateValue = parseISODate(date);
   const markedById = session.user.id;
+  const source = session.user.role === "SUPER_ADMIN" ? "ADMIN_CORRECTION" : "FACULTY_ENTRY";
 
   try {
     await prisma.$transaction(
@@ -70,13 +71,14 @@ export async function markAttendanceAction(input: MarkAttendanceInput): Promise<
               date: dateValue,
             },
           },
-          update: { status: entry.status, markedById },
+          update: { status: entry.status, markedById, source },
           create: {
             studentId: entry.studentId,
             courseId,
             date: dateValue,
             status: entry.status,
             markedById,
+            source,
           },
         })
       )
@@ -117,7 +119,7 @@ export async function updateAttendanceRecordAction(
   try {
     await prisma.attendanceRecord.update({
       where: { id: parsed.data.recordId },
-      data: { status: parsed.data.status, markedById: session.user.id },
+      data: { status: parsed.data.status, markedById: session.user.id, source: "ADMIN_CORRECTION" },
     });
   } catch {
     return { success: false, message: "Record not found or could not be updated." };
