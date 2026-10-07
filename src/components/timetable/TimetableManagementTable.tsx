@@ -1,7 +1,7 @@
 "use client";
 
-import { useTransition } from "react";
-import { Clock, Pencil, Trash2, Power, Video } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Clock, Pencil, Trash2, Power, Video, ChevronDown, FolderOpen } from "lucide-react";
 import {
   toggleTimetableSlotActiveAction,
   deleteTimetableSlotAction,
@@ -31,9 +31,6 @@ function Row({ slot, onEdit }: { slot: TimetableSlotItem; onEdit: () => void }) 
     <tr className={slot.isActive ? "" : "opacity-50"}>
       <td className="px-5 py-3">
         <p className="font-medium text-ink-900">
-          {slot.courseCode} — {slot.courseName}
-        </p>
-        <p className="text-xs text-ink-900/45">
           {slot.facultyName}
           {slot.batchName ? ` · ${slot.batchName}` : ""}
         </p>
@@ -114,23 +111,67 @@ function Row({ slot, onEdit }: { slot: TimetableSlotItem; onEdit: () => void }) 
   );
 }
 
-export default function TimetableManagementTable({
-  slots,
+interface CourseGroup {
+  courseId: string;
+  courseCode: string;
+  courseName: string;
+  slots: TimetableSlotItem[];
+}
+
+function groupByCourse(slots: TimetableSlotItem[]): CourseGroup[] {
+  const map = new Map<string, CourseGroup>();
+  for (const s of slots) {
+    if (!map.has(s.courseId)) {
+      map.set(s.courseId, {
+        courseId: s.courseId,
+        courseCode: s.courseCode,
+        courseName: s.courseName,
+        slots: [],
+      });
+    }
+    map.get(s.courseId)!.slots.push(s);
+  }
+  return Array.from(map.values()).sort((a, b) => a.courseCode.localeCompare(b.courseCode));
+}
+
+function CourseSection({
+  group,
+  isExpanded,
+  onToggle,
   onEdit,
 }: {
-  slots: TimetableSlotItem[];
+  group: CourseGroup;
+  isExpanded: boolean;
+  onToggle: () => void;
   onEdit: (slot: TimetableSlotItem) => void;
 }) {
   return (
-    <DashboardCard title="Weekly Schedule" bodyClassName="p-0">
-      {slots.length === 0 ? (
-        <p className="p-5 text-center text-sm text-ink-900/45">No classes on the timetable yet.</p>
-      ) : (
+    <div>
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-3 bg-ink-900/[0.03] px-5 py-3 text-left transition-colors hover:bg-ink-900/[0.05]"
+      >
+        <span className="flex items-center gap-2.5">
+          <FolderOpen size={15} className="text-gold-600" aria-hidden="true" />
+          <span className="text-sm font-semibold text-ink-900">
+            {group.courseCode} — {group.courseName}
+          </span>
+          <span className="text-xs text-ink-900/40">
+            {group.slots.length} class{group.slots.length === 1 ? "" : "es"}
+          </span>
+        </span>
+        <ChevronDown
+          size={16}
+          className={`shrink-0 text-ink-900/40 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
+      </button>
+      {isExpanded && (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-ink-900/8 border-b text-xs uppercase tracking-wide text-ink-900/40">
-                <th className="px-5 py-3 font-medium">Course</th>
+                <th className="px-5 py-3 font-medium">Faculty / Batch</th>
                 <th className="px-5 py-3 font-medium">When</th>
                 <th className="px-5 py-3 font-medium">Where</th>
                 <th className="px-5 py-3 font-medium">Status</th>
@@ -138,13 +179,87 @@ export default function TimetableManagementTable({
               </tr>
             </thead>
             <tbody className="divide-ink-900/8 divide-y">
-              {slots.map((slot) => (
+              {group.slots.map((slot) => (
                 <Row key={slot.id} slot={slot} onEdit={() => onEdit(slot)} />
               ))}
             </tbody>
           </table>
         </div>
       )}
-    </DashboardCard>
+    </div>
+  );
+}
+
+export default function TimetableManagementTable({
+  slots,
+  onEdit,
+}: {
+  slots: TimetableSlotItem[];
+  onEdit: (slot: TimetableSlotItem) => void;
+}) {
+  const [courseFilter, setCourseFilter] = useState("all");
+  // Every course section starts open; ids in this set are the ones the
+  // admin has manually collapsed. Each section toggles independently.
+  const [collapsedCourseIds, setCollapsedCourseIds] = useState<Set<string>>(new Set());
+
+  const courseOptions = Array.from(
+    new Map(slots.map((s) => [s.courseId, { id: s.courseId, code: s.courseCode, name: s.courseName }])).values()
+  ).sort((a, b) => a.code.localeCompare(b.code));
+
+  const visibleSlots =
+    courseFilter === "all" ? slots : slots.filter((s) => s.courseId === courseFilter);
+  const groups = groupByCourse(visibleSlots);
+
+  return (
+    <div className="space-y-4">
+      {slots.length > 0 && (
+        <div className="flex items-center gap-2">
+          <label htmlFor="timetableCourseFilter" className="text-xs font-medium text-ink-900/50">
+            Course
+          </label>
+          <select
+            id="timetableCourseFilter"
+            value={courseFilter}
+            onChange={(e) => setCourseFilter(e.target.value)}
+            className="rounded-sm border border-ink-900/15 bg-white px-3 py-1.5 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+          >
+            <option value="all">All courses</option>
+            {courseOptions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.code} — {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <DashboardCard title="Weekly Schedule" bodyClassName="p-0">
+        {groups.length === 0 ? (
+          <p className="p-5 text-center text-sm text-ink-900/45">No classes on the timetable yet.</p>
+        ) : (
+          <div className="divide-ink-900/8 divide-y">
+            {groups.map((group) => (
+              <CourseSection
+                key={group.courseId}
+                group={group}
+                isExpanded={!collapsedCourseIds.has(group.courseId)}
+                onToggle={() =>
+                  setCollapsedCourseIds((current) => {
+                    const next = new Set(current);
+                    if (next.has(group.courseId)) {
+                      next.delete(group.courseId);
+                    } else {
+                      next.add(group.courseId);
+                    }
+                    return next;
+                  })
+                }
+                onEdit={onEdit}
+              />
+            ))}
+          </div>
+        )}
+      </DashboardCard>
+    </div>
   );
 }
