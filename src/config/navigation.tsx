@@ -21,6 +21,7 @@ import {
   FileClock,
   SlidersHorizontal,
   FileSpreadsheet,
+  CalendarRange,
 } from "lucide-react";
 import { Role } from "@prisma/client";
 import { ROLE_HOME } from "@/lib/rbac/permissions";
@@ -71,6 +72,7 @@ export function getNavSections(role: Role): NavSection[] {
             { label: "Certificates", href: "/student/certificates", icon: BadgeCheck },
             { label: "Exam Countdown", href: "/student/exams", icon: Timer },
             { label: "View Course", href: "/student/materials", icon: Library },
+            { label: "Study Plan", href: "/student/study-plans", icon: CalendarRange },
             { label: "Assignments", href: "/student/assignments", icon: ClipboardCheck },
           ],
         },
@@ -124,6 +126,7 @@ export function getNavSections(role: Role): NavSection[] {
             { label: "Results", href: "/academic-admin/results", icon: BarChart3 },
             { label: "Test Reports", href: "/academic-admin/test-reports", icon: FileSpreadsheet },
             { label: "Study Materials", href: "/academic-admin/materials", icon: Library },
+            { label: "Study Plans", href: "/academic-admin/study-plans", icon: CalendarRange },
             { label: "Certificates", href: "/academic-admin/certificates", icon: Award },
             { label: "Exam Countdown", href: "/academic-admin/exams", icon: Timer },
           ],
@@ -155,6 +158,7 @@ export function getNavSections(role: Role): NavSection[] {
             { label: "Results", href: "/academic-admin/results", icon: BarChart3 },
             { label: "Test Reports", href: "/academic-admin/test-reports", icon: FileSpreadsheet },
             { label: "Study Materials", href: "/academic-admin/materials", icon: Library },
+            { label: "Study Plans", href: "/academic-admin/study-plans", icon: CalendarRange },
             { label: "Certificates", href: "/academic-admin/certificates", icon: Award },
             { label: "Exam Countdown", href: "/academic-admin/exams", icon: Timer },
           ],
