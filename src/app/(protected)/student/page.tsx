@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth/auth";
 import { routes } from "@/config/site";
 import { getStudentDashboardData } from "@/lib/data/student-dashboard";
 import { getStudentMaterials } from "@/lib/data/materials";
+import { getStudentStudyPlans } from "@/lib/data/study-plans";
 import { getQuoteOfTheDay } from "@/lib/data/quotes";
 import ProfileSummaryCard from "@/components/dashboard/cards/ProfileSummaryCard";
 import StatCard from "@/components/dashboard/cards/StatCard";
@@ -17,6 +18,7 @@ import RecentActivitiesCard from "@/components/dashboard/cards/RecentActivitiesC
 import MotivationQuoteCard from "@/components/dashboard/cards/MotivationQuoteCard";
 import QuickActionsCard from "@/components/dashboard/cards/QuickActionsCard";
 import MaterialList from "@/components/materials/MaterialList";
+import StudyPlanList from "@/components/materials/StudyPlanList";
 
 export const metadata = { title: "Dashboard" };
 
@@ -31,6 +33,7 @@ export default async function StudentDashboard() {
 
   const data = await getStudentDashboardData(session!.user.id);
   const materials = await getStudentMaterials(session!.user.id);
+  const studyPlans = await getStudentStudyPlans(session!.user.id);
   const quote = getQuoteOfTheDay();
 
   return (
@@ -71,6 +74,7 @@ export default async function StudentDashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <MaterialList materials={materials.slice(0, 4)} />
+          <StudyPlanList plans={studyPlans.slice(0, 4)} />
           <CourseProgressCard items={data.courseProgress} />
           <PerformanceChart data={data.performance} />
           <UpcomingClassesCard items={data.upcomingClasses} />
