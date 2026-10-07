@@ -75,6 +75,9 @@ model User {
   // Study materials module
   uploadedMaterials StudyMaterial[]
 
+  // Study plan module
+  uploadedStudyPlans StudyPlan[]
+
   @@index([role])
   @@index([batchId])
   @@map("users")
@@ -177,6 +180,7 @@ courseBatches CourseBatch[]
   semesterCourseResults SemesterCourseResult[]
   certificates          Certificate[]
   materials             StudyMaterial[]
+  studyPlans            StudyPlan[]
   additionalFaculty     CourseFaculty[]
   notifications         Notification[]
 
@@ -770,6 +774,28 @@ model StudyMaterial {
   @@index([courseId])
   @@index([moduleId])
   @@map("study_materials")
+}
+
+// Weekly study-plan posters/PDFs per course (e.g. "Week 5 — Developmental
+// Psychology Parts 3 & 4"), separate from the chapter-organized study
+// materials above since these are uploaded regularly as one finished
+// poster/PDF per week rather than per-chapter documents. Same URL-reference
+// pattern as StudyMaterial — no real file upload storage in this project.
+model StudyPlan {
+  id           String   @id @default(cuid())
+  courseId     String
+  title        String // e.g. "Week 5 — Developmental Psychology Parts 3 & 4"
+  weekLabel    String? // short badge text, e.g. "Week 5" — optional
+  url          String
+  order        Int // assigned automatically as next-in-course, so plans list chronologically
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  course     Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  uploadedBy User   @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
+  @@map("study_plans")
 }
 
 // Additional faculty co-teaching a course, beyond Course.facultyId (the
