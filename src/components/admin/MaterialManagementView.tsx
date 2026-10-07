@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef } from "react";
-import { Plus, Trash2, Pencil, Library } from "lucide-react";
+import { Plus, Trash2, Pencil, Library, ChevronDown, FolderOpen } from "lucide-react";
 import {
   createMaterialAction,
   deleteMaterialAction,
@@ -414,10 +414,9 @@ function Row({
     <tr>
       <td className="px-5 py-3">
         <p className="font-medium text-ink-900">{material.title}</p>
-        <p className="text-xs text-ink-900/45">
-          {material.courseCode}
-          {material.moduleName ? ` · ${material.moduleName}` : ""}
-        </p>
+        {material.moduleName && (
+          <p className="text-xs text-ink-900/45">{material.moduleName}</p>
+        )}
       </td>
       <td className="px-5 py-3 text-ink-900/70">{material.type}</td>
       <td className="px-5 py-3 text-ink-900/70">{material.fileSize ?? "—"}</td>
@@ -445,6 +444,87 @@ function Row({
   );
 }
 
+interface CourseGroup {
+  courseId: string;
+  courseCode: string;
+  courseName: string;
+  items: MaterialItem[];
+}
+
+function groupByCourse(materials: MaterialItem[]): CourseGroup[] {
+  const map = new Map<string, CourseGroup>();
+  for (const m of materials) {
+    if (!map.has(m.courseId)) {
+      map.set(m.courseId, {
+        courseId: m.courseId,
+        courseCode: m.courseCode,
+        courseName: m.courseName,
+        items: [],
+      });
+    }
+    map.get(m.courseId)!.items.push(m);
+  }
+  return Array.from(map.values()).sort((a, b) => a.courseCode.localeCompare(b.courseCode));
+}
+
+function CourseSection({
+  group,
+  isExpanded,
+  onToggle,
+  courses,
+  chaptersByCourse,
+}: {
+  group: CourseGroup;
+  isExpanded: boolean;
+  onToggle: () => void;
+  courses: CourseOption[];
+  chaptersByCourse: Record<string, ChapterOption[]>;
+}) {
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-3 bg-ink-900/[0.03] px-5 py-3 text-left transition-colors hover:bg-ink-900/[0.05]"
+      >
+        <span className="flex items-center gap-2.5">
+          <FolderOpen size={15} className="text-gold-600" aria-hidden="true" />
+          <span className="text-sm font-semibold text-ink-900">
+            {group.courseCode} — {group.courseName}
+          </span>
+          <span className="text-xs text-ink-900/40">
+            {group.items.length} item{group.items.length === 1 ? "" : "s"}
+          </span>
+        </span>
+        <ChevronDown
+          size={16}
+          className={`shrink-0 text-ink-900/40 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
+      </button>
+      {isExpanded && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-ink-900/8 border-b text-xs uppercase tracking-wide text-ink-900/40">
+                <th className="px-5 py-3 font-medium">Material</th>
+                <th className="px-5 py-3 font-medium">Type</th>
+                <th className="px-5 py-3 font-medium">Size</th>
+                <th className="px-5 py-3 font-medium">Added</th>
+                <th className="px-5 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-ink-900/8 divide-y">
+              {group.items.map((m) => (
+                <Row key={m.id} material={m} courses={courses} chaptersByCourse={chaptersByCourse} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MaterialManagementView({
   materials,
   courses,
@@ -455,6 +535,14 @@ export default function MaterialManagementView({
   chaptersByCourse: Record<string, ChapterOption[]>;
 }) {
   const [showCreate, setShowCreate] = useState(false);
+  const [courseFilter, setCourseFilter] = useState("all");
+  // Every course section starts open; ids in this set are the ones the
+  // admin has manually collapsed. Each section toggles independently.
+  const [collapsedCourseIds, setCollapsedCourseIds] = useState<Set<string>>(new Set());
+
+  const visibleMaterials =
+    courseFilter === "all" ? materials : materials.filter((m) => m.courseId === courseFilter);
+  const groups = groupByCourse(visibleMaterials);
 
   return (
     <div className="space-y-6">
@@ -475,27 +563,50 @@ export default function MaterialManagementView({
         />
       )}
 
+      <div className="flex items-center gap-2">
+        <label htmlFor="courseFilter" className="text-xs font-medium text-ink-900/50">
+          Course
+        </label>
+        <select
+          id="courseFilter"
+          value={courseFilter}
+          onChange={(e) => setCourseFilter(e.target.value)}
+          className="rounded-sm border border-ink-900/15 bg-white px-3 py-1.5 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+        >
+          <option value="all">All courses</option>
+          {courses.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.code} — {c.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <DashboardCard title="Study Materials" icon={Library} bodyClassName="p-0">
-        {materials.length === 0 ? (
+        {groups.length === 0 ? (
           <p className="p-5 text-center text-sm text-ink-900/45">No materials added yet.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-ink-900/8 border-b text-xs uppercase tracking-wide text-ink-900/40">
-                  <th className="px-5 py-3 font-medium">Material</th>
-                  <th className="px-5 py-3 font-medium">Type</th>
-                  <th className="px-5 py-3 font-medium">Size</th>
-                  <th className="px-5 py-3 font-medium">Added</th>
-                  <th className="px-5 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-ink-900/8 divide-y">
-                {materials.map((m) => (
-                  <Row key={m.id} material={m} courses={courses} chaptersByCourse={chaptersByCourse} />
-                ))}
-              </tbody>
-            </table>
+          <div className="divide-ink-900/8 divide-y">
+            {groups.map((group) => (
+              <CourseSection
+                key={group.courseId}
+                group={group}
+                isExpanded={!collapsedCourseIds.has(group.courseId)}
+                onToggle={() =>
+                  setCollapsedCourseIds((current) => {
+                    const next = new Set(current);
+                    if (next.has(group.courseId)) {
+                      next.delete(group.courseId);
+                    } else {
+                      next.add(group.courseId);
+                    }
+                    return next;
+                  })
+                }
+                courses={courses}
+                chaptersByCourse={chaptersByCourse}
+              />
+            ))}
           </div>
         )}
       </DashboardCard>
