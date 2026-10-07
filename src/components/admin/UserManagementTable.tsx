@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Power, Trash2, X, Pencil } from "lucide-react";
+import { Power, Trash2, X, Pencil, ChevronDown, FolderOpen } from "lucide-react";
 import {
   toggleUserActiveAction,
   deleteUserAction,
@@ -226,7 +226,7 @@ function Row({
   );
 }
 
-export default function UserManagementTable({
+function UserTable({
   users,
   role,
   batches,
@@ -236,30 +236,183 @@ export default function UserManagementTable({
   batches: BatchOption[];
 }) {
   return (
-    <DashboardCard title={role === "STUDENT" ? "Students" : "Faculty"} bodyClassName="p-0">
-      {users.length === 0 ? (
-        <p className="p-5 text-center text-sm text-ink-900/45">No accounts found.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-ink-900/8 border-b text-xs uppercase tracking-wide text-ink-900/40">
-                <th className="px-5 py-3 font-medium">Name</th>
-                {role === "STUDENT" && <th className="px-5 py-3 font-medium">Batches</th>}
-                <th className="px-5 py-3 font-medium">Courses</th>
-                <th className="px-5 py-3 font-medium">Joined</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-ink-900/8 divide-y">
-              {users.map((u) => (
-                <Row key={u.id} user={u} role={role} batches={batches} />
-              ))}
-            </tbody>
-          </table>
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-ink-900/8 border-b text-xs uppercase tracking-wide text-ink-900/40">
+            <th className="px-5 py-3 font-medium">Name</th>
+            {role === "STUDENT" && <th className="px-5 py-3 font-medium">Batches</th>}
+            <th className="px-5 py-3 font-medium">Courses</th>
+            <th className="px-5 py-3 font-medium">Joined</th>
+            <th className="px-5 py-3 font-medium">Status</th>
+            <th className="px-5 py-3" />
+          </tr>
+        </thead>
+        <tbody className="divide-ink-900/8 divide-y">
+          {users.map((u) => (
+            <Row key={u.id} user={u} role={role} batches={batches} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const UNASSIGNED_BATCH_KEY = "__unassigned__";
+
+interface BatchGroup {
+  key: string;
+  name: string;
+  students: AdminUserRow[];
+}
+
+// A student can belong to several batches (or none), so this isn't a
+// strict partition — a multi-batch student appears once under each of
+// their batches, and batchless students land in one "Unassigned" group.
+function groupByBatch(students: AdminUserRow[], batches: BatchOption[]): BatchGroup[] {
+  const nameById = new Map(batches.map((b) => [b.id, b.name]));
+  const map = new Map<string, BatchGroup>();
+  for (const s of students) {
+    const keys = s.batchIds.length > 0 ? s.batchIds : [UNASSIGNED_BATCH_KEY];
+    for (const key of keys) {
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          name: key === UNASSIGNED_BATCH_KEY ? "Unassigned" : (nameById.get(key) ?? "Unknown batch"),
+          students: [],
+        });
+      }
+      map.get(key)!.students.push(s);
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.key === UNASSIGNED_BATCH_KEY) return 1;
+    if (b.key === UNASSIGNED_BATCH_KEY) return -1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+function BatchSection({
+  group,
+  isExpanded,
+  onToggle,
+  role,
+  batches,
+}: {
+  group: BatchGroup;
+  isExpanded: boolean;
+  onToggle: () => void;
+  role: "STUDENT" | "FACULTY";
+  batches: BatchOption[];
+}) {
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-3 bg-ink-900/[0.03] px-5 py-3 text-left transition-colors hover:bg-ink-900/[0.05]"
+      >
+        <span className="flex items-center gap-2.5">
+          <FolderOpen size={15} className="text-gold-600" aria-hidden="true" />
+          <span className="text-sm font-semibold text-ink-900">{group.name}</span>
+          <span className="text-xs text-ink-900/40">
+            {group.students.length} student{group.students.length === 1 ? "" : "s"}
+          </span>
+        </span>
+        <ChevronDown
+          size={16}
+          className={`shrink-0 text-ink-900/40 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
+      </button>
+      {isExpanded && <UserTable users={group.students} role={role} batches={batches} />}
+    </div>
+  );
+}
+
+export default function UserManagementTable({
+  users,
+  role,
+  batches,
+}: {
+  users: AdminUserRow[];
+  role: "STUDENT" | "FACULTY";
+  batches: BatchOption[];
+}) {
+  const [batchFilter, setBatchFilter] = useState("all");
+  const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
+
+  if (role !== "STUDENT") {
+    return (
+      <DashboardCard title="Faculty" bodyClassName="p-0">
+        {users.length === 0 ? (
+          <p className="p-5 text-center text-sm text-ink-900/45">No accounts found.</p>
+        ) : (
+          <UserTable users={users} role={role} batches={batches} />
+        )}
+      </DashboardCard>
+    );
+  }
+
+  const visibleUsers =
+    batchFilter === "all"
+      ? users
+      : batchFilter === UNASSIGNED_BATCH_KEY
+        ? users.filter((u) => u.batchIds.length === 0)
+        : users.filter((u) => u.batchIds.includes(batchFilter));
+  const groups = groupByBatch(visibleUsers, batches);
+
+  return (
+    <div className="space-y-4">
+      {users.length > 0 && (
+        <div className="flex items-center gap-2">
+          <label htmlFor="studentBatchFilter" className="text-xs font-medium text-ink-900/50">
+            Batch
+          </label>
+          <select
+            id="studentBatchFilter"
+            value={batchFilter}
+            onChange={(e) => setBatchFilter(e.target.value)}
+            className="rounded-sm border border-ink-900/15 bg-white px-3 py-1.5 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+          >
+            <option value="all">All batches</option>
+            {batches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+            <option value={UNASSIGNED_BATCH_KEY}>Unassigned</option>
+          </select>
         </div>
       )}
-    </DashboardCard>
+
+      <DashboardCard title="Students" bodyClassName="p-0">
+        {groups.length === 0 ? (
+          <p className="p-5 text-center text-sm text-ink-900/45">No accounts found.</p>
+        ) : (
+          <div className="divide-ink-900/8 divide-y">
+            {groups.map((group) => (
+              <BatchSection
+                key={group.key}
+                group={group}
+                isExpanded={!collapsedKeys.has(group.key)}
+                onToggle={() =>
+                  setCollapsedKeys((current) => {
+                    const next = new Set(current);
+                    if (next.has(group.key)) {
+                      next.delete(group.key);
+                    } else {
+                      next.add(group.key);
+                    }
+                    return next;
+                  })
+                }
+                role={role}
+                batches={batches}
+              />
+            ))}
+          </div>
+        )}
+      </DashboardCard>
+    </div>
   );
 }
