@@ -15,11 +15,20 @@ import Alert from "@/components/ui/Alert";
 import type { StudyPlanItem } from "@/lib/data/study-plans";
 import type { CourseOption } from "@/types/attendance";
 
+// ISO "YYYY-MM-DD" strings compare correctly with plain string comparison.
+function isExpired(plan: StudyPlanItem): boolean {
+  if (!plan.endDate) return false;
+  const todayISO = new Date().toISOString().slice(0, 10);
+  return plan.endDate < todayISO;
+}
+
 interface StudyPlanFormValues {
   courseId: string;
   title: string;
   weekLabel: string;
   url: string;
+  startDate: string;
+  endDate: string;
 }
 
 function StudyPlanFields({
@@ -45,6 +54,8 @@ function StudyPlanFields({
   const [title, setTitle] = useState(initial.title);
   const [weekLabel, setWeekLabel] = useState(initial.weekLabel);
   const [url, setUrl] = useState(initial.url);
+  const [startDate, setStartDate] = useState(initial.startDate);
+  const [endDate, setEndDate] = useState(initial.endDate);
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<ActionResult | null>(null);
 
@@ -52,13 +63,15 @@ function StudyPlanFields({
     e.preventDefault();
     setResult(null);
     startTransition(async () => {
-      const res = await onSubmit({ courseId, title, weekLabel, url });
+      const res = await onSubmit({ courseId, title, weekLabel, url, startDate, endDate });
       setResult(res);
       if (res.success) {
         if (clearOnSuccess) {
           setTitle("");
           setWeekLabel("");
           setUrl("");
+          setStartDate("");
+          setEndDate("");
         }
         if (closeOnSuccess) {
           onCancel();
@@ -129,6 +142,25 @@ function StudyPlanFields({
             required
           />
         </div>
+        <Input
+          label="Start date (optional)"
+          name="startDate"
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+        />
+        <div>
+          <Input
+            label="End date (optional)"
+            name="endDate"
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
+          <p className="mt-1.5 text-xs text-ink-900/45">
+            Students stop seeing this plan automatically once the end date passes.
+          </p>
+        </div>
       </div>
       <Button type="submit" isLoading={isPending} className="sm:w-auto sm:px-8">
         {submitLabel}
@@ -147,7 +179,14 @@ function CreateStudyPlanForm({
   return (
     <StudyPlanFields
       courses={courses}
-      initial={{ courseId: courses[0]?.id ?? "", title: "", weekLabel: "", url: "" }}
+      initial={{
+        courseId: courses[0]?.id ?? "",
+        title: "",
+        weekLabel: "",
+        url: "",
+        startDate: "",
+        endDate: "",
+      }}
       heading="Add study plan"
       submitLabel="Add study plan"
       clearOnSuccess
@@ -159,6 +198,8 @@ function CreateStudyPlanForm({
           title: values.title,
           weekLabel: values.weekLabel.trim() || undefined,
           url: values.url,
+          startDate: values.startDate || undefined,
+          endDate: values.endDate || undefined,
         })
       }
     />
@@ -182,6 +223,8 @@ function EditStudyPlanForm({
         title: plan.title,
         weekLabel: plan.weekLabel ?? "",
         url: plan.url,
+        startDate: plan.startDate ?? "",
+        endDate: plan.endDate ?? "",
       }}
       heading="Edit study plan"
       submitLabel="Save changes"
@@ -194,6 +237,8 @@ function EditStudyPlanForm({
           title: values.title,
           weekLabel: values.weekLabel.trim() || undefined,
           url: values.url,
+          startDate: values.startDate || undefined,
+          endDate: values.endDate || undefined,
         })
       }
     />
@@ -231,7 +276,20 @@ function Row({ plan, courses }: { plan: StudyPlanItem; courses: CourseOption[] }
           </span>
         )}
       </td>
-      <td className="px-5 py-3 text-ink-900/70">{plan.createdAt}</td>
+      <td className="px-5 py-3 text-ink-900/70">
+        {plan.startDate || plan.endDate ? (
+          <p>
+            {plan.startDate ?? "—"} → {plan.endDate ?? "—"}
+          </p>
+        ) : (
+          <p className="text-ink-900/40">No dates set</p>
+        )}
+        {isExpired(plan) && (
+          <span className="mt-1 inline-block rounded-sm bg-signal-error/10 px-1.5 py-0.5 text-xs font-medium text-signal-error">
+            Expired
+          </span>
+        )}
+      </td>
       <td className="px-5 py-3">
         <a
           href={plan.url}
@@ -327,7 +385,7 @@ function CourseSection({
             <thead>
               <tr className="border-ink-900/8 border-b text-xs uppercase tracking-wide text-ink-900/40">
                 <th className="px-5 py-3 font-medium">Study Plan</th>
-                <th className="px-5 py-3 font-medium">Added</th>
+                <th className="px-5 py-3 font-medium">Schedule</th>
                 <th className="px-5 py-3 font-medium">Link</th>
                 <th className="px-5 py-3" />
               </tr>

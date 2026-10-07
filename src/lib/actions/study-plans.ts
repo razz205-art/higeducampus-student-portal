@@ -15,12 +15,21 @@ function isAdmin(role: string | undefined): boolean {
   return role === "ACADEMIC_ADMIN" || role === "SUPER_ADMIN";
 }
 
-const studyPlanSchema = z.object({
-  courseId: z.string().min(1, "Choose a course."),
-  title: z.string().trim().min(2, "Enter a title.").max(150),
-  weekLabel: z.string().trim().max(30).optional(),
-  url: z.string().trim().url("Enter a valid URL."),
-});
+const isoDate = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid date.");
+
+const studyPlanSchema = z
+  .object({
+    courseId: z.string().min(1, "Choose a course."),
+    title: z.string().trim().min(2, "Enter a title.").max(150),
+    weekLabel: z.string().trim().max(30).optional(),
+    url: z.string().trim().url("Enter a valid URL."),
+    startDate: isoDate.optional().or(z.literal("")),
+    endDate: isoDate.optional().or(z.literal("")),
+  })
+  .refine(
+    (data) => !data.startDate || !data.endDate || data.startDate <= data.endDate,
+    { message: "End date must be on or after the start date.", path: ["endDate"] }
+  );
 
 export async function createStudyPlanAction(
   input: z.infer<typeof studyPlanSchema>
@@ -48,6 +57,8 @@ export async function createStudyPlanAction(
       title: parsed.data.title,
       weekLabel: parsed.data.weekLabel || null,
       url: parsed.data.url,
+      startDate: parsed.data.startDate ? new Date(`${parsed.data.startDate}T00:00:00.000Z`) : null,
+      endDate: parsed.data.endDate ? new Date(`${parsed.data.endDate}T00:00:00.000Z`) : null,
       order: existingCount + 1,
       uploadedById: session.user.id,
     },
@@ -84,6 +95,8 @@ export async function updateStudyPlanAction(
         title: parsed.data.title,
         weekLabel: parsed.data.weekLabel || null,
         url: parsed.data.url,
+        startDate: parsed.data.startDate ? new Date(`${parsed.data.startDate}T00:00:00.000Z`) : null,
+        endDate: parsed.data.endDate ? new Date(`${parsed.data.endDate}T00:00:00.000Z`) : null,
       },
     });
   } catch {

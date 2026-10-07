@@ -782,14 +782,16 @@ model StudyMaterial {
 // poster/PDF per week rather than per-chapter documents. Same URL-reference
 // pattern as StudyMaterial — no real file upload storage in this project.
 model StudyPlan {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   courseId     String
   title        String // e.g. "Week 5 — Developmental Psychology Parts 3 & 4"
   weekLabel    String? // short badge text, e.g. "Week 5" — optional
   url          String
+  startDate    DateTime? // the week/period this plan covers — optional for older rows
+  endDate      DateTime? // once past, the plan stops showing to students automatically
   order        Int // assigned automatically as next-in-course, so plans list chronologically
   uploadedById String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 
   course     Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
   uploadedBy User   @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
