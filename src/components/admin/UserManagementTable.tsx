@@ -10,6 +10,7 @@ import {
 } from "@/lib/actions/admin-users";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import Badge from "@/components/ui/Badge";
+import ExportButtonGroup from "@/components/attendance/ExportButtonGroup";
 import type { AdminUserRow } from "@/lib/data/admin-users";
 import type { BatchOption } from "@/types/attendance";
 
@@ -436,24 +437,27 @@ export default function UserManagementTable({
   return (
     <div className="space-y-4">
       {users.length > 0 && (
-        <div className="flex items-center gap-2">
-          <label htmlFor="studentBatchFilter" className="text-xs font-medium text-ink-900/50">
-            Batch
-          </label>
-          <select
-            id="studentBatchFilter"
-            value={batchFilter}
-            onChange={(e) => setBatchFilter(e.target.value)}
-            className="rounded-sm border border-ink-900/15 bg-white px-3 py-1.5 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
-          >
-            <option value="all">All batches</option>
-            {batches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-            <option value={UNASSIGNED_BATCH_KEY}>Unassigned</option>
-          </select>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <label htmlFor="studentBatchFilter" className="text-xs font-medium text-ink-900/50">
+              Batch
+            </label>
+            <select
+              id="studentBatchFilter"
+              value={batchFilter}
+              onChange={(e) => setBatchFilter(e.target.value)}
+              className="rounded-sm border border-ink-900/15 bg-white px-3 py-1.5 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+            >
+              <option value="all">All batches</option>
+              {batches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+              <option value={UNASSIGNED_BATCH_KEY}>Unassigned</option>
+            </select>
+          </div>
+          <ExportButtonGroup baseHref={`/api/students/export?batchId=${batchFilter}`} />
         </div>
       )}
 
