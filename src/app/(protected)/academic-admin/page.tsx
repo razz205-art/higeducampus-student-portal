@@ -11,6 +11,7 @@ import {
   Award,
   Library,
   FileSpreadsheet,
+  CalendarRange,
 } from "lucide-react";
 import { auth } from "@/lib/auth/auth";
 import { routes } from "@/config/site";
@@ -80,6 +81,12 @@ const MANAGEMENT_LINKS = [
     title: "Study Materials",
     description: "Documents, videos, links",
     icon: Library,
+  },
+  {
+    href: "/academic-admin/study-plans",
+    title: "Study Plans",
+    description: "Weekly plans, uploaded course-wise",
+    icon: CalendarRange,
   },
   {
     href: "/academic-admin/certificates",
