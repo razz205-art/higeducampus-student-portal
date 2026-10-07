@@ -10,6 +10,10 @@ export interface ActionResult {
   message: string;
 }
 
+export interface CreateChapterResult extends ActionResult {
+  chapter?: { id: string; title: string; order: number };
+}
+
 function isAdmin(role: string | undefined): boolean {
   return role === "ACADEMIC_ADMIN" || role === "SUPER_ADMIN";
 }
@@ -76,6 +80,44 @@ export async function deleteMaterialAction(materialId: string): Promise<ActionRe
   return { success: true, message: "Study material removed." };
 }
 
+export async function updateMaterialAction(
+  materialId: string,
+  input: z.infer<typeof materialSchema>
+): Promise<ActionResult> {
+  const session = await auth();
+  if (!session?.user) return { success: false, message: "You must be signed in." };
+  if (!isAdmin(session.user.role)) {
+    return { success: false, message: "You don't have permission to manage study materials." };
+  }
+
+  const parsed = materialSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    await prisma.studyMaterial.update({
+      where: { id: materialId },
+      data: {
+        courseId: parsed.data.courseId,
+        moduleId: parsed.data.moduleId,
+        title: parsed.data.title,
+        description: parsed.data.description || null,
+        type: parsed.data.type,
+        url: parsed.data.url,
+        fileSize: parsed.data.fileSize || null,
+      },
+    });
+  } catch {
+    return { success: false, message: "Material not found." };
+  }
+
+  revalidatePath("/academic-admin/materials");
+  revalidatePath("/student/materials");
+  revalidatePath("/student");
+  return { success: true, message: "Study material updated." };
+}
+
 const chapterSchema = z.object({
   courseId: z.string().min(1, "Choose a course."),
   title: z.string().trim().min(2, "Enter a chapter title.").max(100),
@@ -88,7 +130,7 @@ const chapterSchema = z.object({
  */
 export async function createChapterAction(
   input: z.infer<typeof chapterSchema>
-): Promise<ActionResult> {
+): Promise<CreateChapterResult> {
   const session = await auth();
   if (!session?.user) return { success: false, message: "You must be signed in." };
   if (!isAdmin(session.user.role)) {
@@ -102,7 +144,7 @@ export async function createChapterAction(
 
   const existingCount = await prisma.module.count({ where: { courseId: parsed.data.courseId } });
 
-  await prisma.module.create({
+  const created = await prisma.module.create({
     data: {
       courseId: parsed.data.courseId,
       title: parsed.data.title,
@@ -111,5 +153,9 @@ export async function createChapterAction(
   });
 
   revalidatePath("/academic-admin/materials");
-  return { success: true, message: "Chapter added." };
+  return {
+    success: true,
+    message: "Chapter added.",
+    chapter: { id: created.id, title: created.title, order: created.order },
+  };
 }

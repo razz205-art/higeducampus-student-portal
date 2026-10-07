@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
-import { Plus, Trash2, Library } from "lucide-react";
+import { useState, useTransition, useEffect, useRef } from "react";
+import { Plus, Trash2, Pencil, Library } from "lucide-react";
 import {
   createMaterialAction,
   deleteMaterialAction,
   createChapterAction,
+  updateMaterialAction,
+  type ActionResult,
 } from "@/lib/actions/materials";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import Input from "@/components/ui/Input";
@@ -14,30 +16,55 @@ import Alert from "@/components/ui/Alert";
 import type { MaterialItem, ChapterOption } from "@/lib/data/materials";
 import type { CourseOption } from "@/types/attendance";
 
-function MaterialForm({
+interface MaterialFormValues {
+  courseId: string;
+  moduleId: string;
+  title: string;
+  description: string;
+  type: "DOCUMENT" | "VIDEO" | "LINK";
+  url: string;
+  fileSize: string;
+}
+
+function MaterialFields({
   courses,
   chaptersByCourse,
-  onDone,
+  initial,
+  heading,
+  submitLabel,
+  clearOnSuccess,
+  closeOnSuccess,
+  onCancel,
+  onSubmit,
 }: {
   courses: CourseOption[];
   chaptersByCourse: Record<string, ChapterOption[]>;
-  onDone: () => void;
+  initial: MaterialFormValues;
+  heading: string;
+  submitLabel: string;
+  clearOnSuccess: boolean;
+  closeOnSuccess: boolean;
+  onCancel: () => void;
+  onSubmit: (values: MaterialFormValues) => Promise<ActionResult>;
 }) {
-  const [courseId, setCourseId] = useState(courses[0]?.id ?? "");
-  const [moduleId, setModuleId] = useState("");
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [type, setType] = useState<"DOCUMENT" | "VIDEO" | "LINK">("DOCUMENT");
-  const [url, setUrl] = useState("");
-  const [fileSize, setFileSize] = useState("");
+  const [courseId, setCourseId] = useState(initial.courseId);
+  const [moduleId, setModuleId] = useState(initial.moduleId);
+  const [title, setTitle] = useState(initial.title);
+  const [description, setDescription] = useState(initial.description);
+  const [type, setType] = useState<"DOCUMENT" | "VIDEO" | "LINK">(initial.type);
+  const [url, setUrl] = useState(initial.url);
+  const [fileSize, setFileSize] = useState(initial.fileSize);
   const [showNewChapter, setShowNewChapter] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState("");
   const [isPending, startTransition] = useTransition();
   const [chapterPending, startChapterTransition] = useTransition();
-  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [chapterResult, setChapterResult] = useState<{ success: boolean; message: string } | null>(
-    null
-  );
+  const [result, setResult] = useState<ActionResult | null>(null);
+  const [chapterResult, setChapterResult] = useState<ActionResult | null>(null);
+
+  // Set right after a new chapter is created, so the effect below can pick
+  // the freshly-created chapter out of the updated list instead of leaving
+  // whatever was selected before. Cleared once that happens.
+  const justCreatedChapterId = useRef<string | null>(null);
 
   const chapters = chaptersByCourse[courseId] ?? [];
 
@@ -47,7 +74,22 @@ function MaterialForm({
   // moduleId stays "" even though a chapter looks selected, permanently
   // disabling the submit button. Keep the actual state in sync with
   // whatever's really shown.
+  //
+  // This also handles picking up a chapter that was just created: adding a
+  // chapter revalidates the page, which flows a fresh `chaptersByCourse`
+  // prop down here. Once the just-created chapter actually shows up in
+  // `chapters`, select it — otherwise a newly added chapter silently stayed
+  // unselected and materials kept saving under whichever chapter was
+  // selected before.
   useEffect(() => {
+    if (
+      justCreatedChapterId.current &&
+      chapters.some((c) => c.id === justCreatedChapterId.current)
+    ) {
+      setModuleId(justCreatedChapterId.current);
+      justCreatedChapterId.current = null;
+      return;
+    }
     if (chapters.length > 0 && !chapters.some((c) => c.id === moduleId)) {
       setModuleId(chapters[0].id);
     } else if (chapters.length === 0 && moduleId) {
@@ -60,21 +102,18 @@ function MaterialForm({
     e.preventDefault();
     setResult(null);
     startTransition(async () => {
-      const res = await createMaterialAction({
-        courseId,
-        moduleId: moduleId,
-        title,
-        description: description || undefined,
-        type,
-        url,
-        fileSize: fileSize || undefined,
-      });
+      const res = await onSubmit({ courseId, moduleId, title, description, type, url, fileSize });
       setResult(res);
       if (res.success) {
-        setTitle("");
-        setDescription("");
-        setUrl("");
-        setFileSize("");
+        if (clearOnSuccess) {
+          setTitle("");
+          setDescription("");
+          setUrl("");
+          setFileSize("");
+        }
+        if (closeOnSuccess) {
+          onCancel();
+        }
       }
     });
   }
@@ -88,6 +127,9 @@ function MaterialForm({
       if (res.success) {
         setNewChapterTitle("");
         setShowNewChapter(false);
+        if (res.chapter) {
+          justCreatedChapterId.current = res.chapter.id;
+        }
       }
     });
   }
@@ -98,10 +140,10 @@ function MaterialForm({
       className="space-y-4 rounded-sm border border-gold-500/30 bg-gold-500/5 p-5"
     >
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-ink-900">Add study material</p>
+        <p className="text-sm font-semibold text-ink-900">{heading}</p>
         <button
           type="button"
-          onClick={onDone}
+          onClick={onCancel}
           className="text-xs font-medium text-ink-900/50 hover:text-ink-900"
         >
           Cancel
@@ -242,20 +284,130 @@ function MaterialForm({
         disabled={!moduleId}
         className="sm:w-auto sm:px-8"
       >
-        Add material
+        {submitLabel}
       </Button>
     </form>
   );
 }
 
-function Row({ material }: { material: MaterialItem }) {
+function MaterialForm({
+  courses,
+  chaptersByCourse,
+  onDone,
+}: {
+  courses: CourseOption[];
+  chaptersByCourse: Record<string, ChapterOption[]>;
+  onDone: () => void;
+}) {
+  return (
+    <MaterialFields
+      courses={courses}
+      chaptersByCourse={chaptersByCourse}
+      initial={{
+        courseId: courses[0]?.id ?? "",
+        moduleId: "",
+        title: "",
+        description: "",
+        type: "DOCUMENT",
+        url: "",
+        fileSize: "",
+      }}
+      heading="Add study material"
+      submitLabel="Add material"
+      clearOnSuccess
+      closeOnSuccess={false}
+      onCancel={onDone}
+      onSubmit={(values) =>
+        createMaterialAction({
+          courseId: values.courseId,
+          moduleId: values.moduleId,
+          title: values.title,
+          description: values.description.trim() || undefined,
+          type: values.type,
+          url: values.url,
+          fileSize: values.fileSize.trim() || undefined,
+        })
+      }
+    />
+  );
+}
+
+function EditMaterialForm({
+  material,
+  courses,
+  chaptersByCourse,
+  onDone,
+}: {
+  material: MaterialItem;
+  courses: CourseOption[];
+  chaptersByCourse: Record<string, ChapterOption[]>;
+  onDone: () => void;
+}) {
+  return (
+    <MaterialFields
+      courses={courses}
+      chaptersByCourse={chaptersByCourse}
+      initial={{
+        courseId: material.courseId,
+        moduleId: material.moduleId ?? "",
+        title: material.title,
+        description: material.description ?? "",
+        type: material.type,
+        url: material.url,
+        fileSize: material.fileSize ?? "",
+      }}
+      heading="Edit study material"
+      submitLabel="Save changes"
+      clearOnSuccess={false}
+      closeOnSuccess
+      onCancel={onDone}
+      onSubmit={(values) =>
+        updateMaterialAction(material.id, {
+          courseId: values.courseId,
+          moduleId: values.moduleId,
+          title: values.title,
+          description: values.description.trim() || undefined,
+          type: values.type,
+          url: values.url,
+          fileSize: values.fileSize.trim() || undefined,
+        })
+      }
+    />
+  );
+}
+
+function Row({
+  material,
+  courses,
+  chaptersByCourse,
+}: {
+  material: MaterialItem;
+  courses: CourseOption[];
+  chaptersByCourse: Record<string, ChapterOption[]>;
+}) {
   const [isPending, startTransition] = useTransition();
+  const [isEditing, setIsEditing] = useState(false);
 
   function remove() {
     if (!confirm(`Remove "${material.title}"?`)) return;
     startTransition(() => {
       deleteMaterialAction(material.id);
     });
+  }
+
+  if (isEditing) {
+    return (
+      <tr>
+        <td colSpan={5} className="bg-gold-500/5 p-4">
+          <EditMaterialForm
+            material={material}
+            courses={courses}
+            chaptersByCourse={chaptersByCourse}
+            onDone={() => setIsEditing(false)}
+          />
+        </td>
+      </tr>
+    );
   }
 
   return (
@@ -271,14 +423,23 @@ function Row({ material }: { material: MaterialItem }) {
       <td className="px-5 py-3 text-ink-900/70">{material.fileSize ?? "—"}</td>
       <td className="px-5 py-3 text-ink-900/70">{material.createdAt}</td>
       <td className="px-5 py-3 text-right">
-        <button
-          onClick={remove}
-          disabled={isPending}
-          aria-label="Delete"
-          className="rounded-sm p-1.5 text-ink-900/50 hover:bg-signal-error/10 hover:text-signal-error disabled:opacity-50"
-        >
-          <Trash2 size={15} aria-hidden="true" />
-        </button>
+        <div className="flex items-center justify-end gap-1">
+          <button
+            onClick={() => setIsEditing(true)}
+            aria-label="Edit"
+            className="rounded-sm p-1.5 text-ink-900/50 hover:bg-ink-900/5 hover:text-ink-900"
+          >
+            <Pencil size={15} aria-hidden="true" />
+          </button>
+          <button
+            onClick={remove}
+            disabled={isPending}
+            aria-label="Delete"
+            className="rounded-sm p-1.5 text-ink-900/50 hover:bg-signal-error/10 hover:text-signal-error disabled:opacity-50"
+          >
+            <Trash2 size={15} aria-hidden="true" />
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -331,7 +492,7 @@ export default function MaterialManagementView({
               </thead>
               <tbody className="divide-ink-900/8 divide-y">
                 {materials.map((m) => (
-                  <Row key={m.id} material={m} />
+                  <Row key={m.id} material={m} courses={courses} chaptersByCourse={chaptersByCourse} />
                 ))}
               </tbody>
             </table>
