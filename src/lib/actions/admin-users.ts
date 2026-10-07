@@ -179,6 +179,47 @@ export async function deleteUserAction(userId: string): Promise<ActionResult> {
     message: `${role === "STUDENT" ? "Student" : "Faculty"} account permanently deleted.`,
   };
 }
+
+/**
+ * Permanently deletes every student who belongs to the given batch — the
+ * "Delete all in batch" action on the grouped Students table. A student who
+ * also belongs to another batch is deleted too (deleting an account isn't
+ * batch-scoped; this is a bulk version of the existing per-row delete, not
+ * a "remove from this batch only" action — use setStudentBatchesAction for
+ * that instead), and the current admin's own account is skipped as a
+ * defense-in-depth measure even though admins are never students.
+ */
+export async function deleteBatchStudentsAction(batchId: string): Promise<ActionResult> {
+  const session = await auth();
+  if (!session?.user) return { success: false, message: "You must be signed in." };
+  if (!isAdmin(session.user.role)) {
+    return { success: false, message: "You don't have permission to delete accounts." };
+  }
+
+  const memberships = await prisma.studentBatch.findMany({
+    where: { batchId },
+    select: { studentId: true },
+  });
+  const studentIds = memberships
+    .map((m: { studentId: string }) => m.studentId)
+    .filter((id: string) => id !== session.user.id);
+
+  if (studentIds.length === 0) {
+    return { success: false, message: "No students in this batch to delete." };
+  }
+
+  const result = await prisma.user.deleteMany({
+    where: { id: { in: studentIds }, role: "STUDENT" },
+  });
+
+  revalidatePath("/academic-admin/students");
+
+  return {
+    success: true,
+    message: `${result.count} student${result.count === 1 ? "" : "s"} permanently deleted.`,
+  };
+}
+
 /**
  * Replaces a student's full set of batch memberships with the given list.
  * Newly-added batches trigger enrollment into whatever courses that batch

@@ -6,6 +6,7 @@ import {
   toggleUserActiveAction,
   deleteUserAction,
   setStudentBatchesAction,
+  deleteBatchStudentsAction,
 } from "@/lib/actions/admin-users";
 import DashboardCard from "@/components/dashboard/cards/DashboardCard";
 import Badge from "@/components/ui/Badge";
@@ -292,6 +293,71 @@ function groupByBatch(students: AdminUserRow[], batches: BatchOption[]): BatchGr
   });
 }
 
+function DeleteBatchControl({ group }: { group: BatchGroup }) {
+  const [isPending, startTransition] = useTransition();
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function confirmDelete(e: React.MouseEvent) {
+    e.stopPropagation();
+    setError(null);
+    startTransition(async () => {
+      const result = await deleteBatchStudentsAction(group.key);
+      if (!result.success) {
+        setError(result.message);
+        setConfirming(false);
+      }
+      // On success the whole group disappears once revalidatePath refreshes
+      // the list — no local state update needed here.
+    });
+  }
+
+  if (confirming) {
+    return (
+      <span className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        {error && <span className="text-xs text-red-600">{error}</span>}
+        <span className="text-xs font-medium text-red-700">
+          Delete all {group.students.length} student{group.students.length === 1 ? "" : "s"} in{" "}
+          {group.name}? This cannot be undone.
+        </span>
+        <button
+          onClick={confirmDelete}
+          disabled={isPending}
+          className="rounded-sm bg-red-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          {isPending ? "Deleting…" : "Yes, delete all"}
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setConfirming(false);
+          }}
+          disabled={isPending}
+          aria-label="Cancel delete"
+          className="rounded-sm p-1.5 text-ink-900/50 hover:bg-ink-900/5 hover:text-ink-900 disabled:opacity-50"
+        >
+          <X size={14} aria-hidden="true" />
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        setError(null);
+        setConfirming(true);
+      }}
+      title="Delete all students in this batch — this cannot be undone"
+      className="flex items-center gap-1 rounded-sm px-2 py-1 text-xs font-medium text-ink-900/40 hover:bg-red-50 hover:text-red-600"
+    >
+      <Trash2 size={13} aria-hidden="true" />
+      Delete all in batch
+    </button>
+  );
+}
+
 function BatchSection({
   group,
   isExpanded,
@@ -305,25 +371,31 @@ function BatchSection({
   role: "STUDENT" | "FACULTY";
   batches: BatchOption[];
 }) {
+  const isDeletableBatch = group.key !== UNASSIGNED_BATCH_KEY;
   return (
     <div>
-      <button
-        onClick={onToggle}
-        className="flex w-full items-center justify-between gap-3 bg-ink-900/[0.03] px-5 py-3 text-left transition-colors hover:bg-ink-900/[0.05]"
-      >
-        <span className="flex items-center gap-2.5">
+      <div className="flex w-full items-center justify-between gap-3 bg-ink-900/[0.03] px-5 py-3 transition-colors hover:bg-ink-900/[0.05]">
+        <button
+          onClick={onToggle}
+          className="flex flex-1 items-center gap-2.5 text-left"
+        >
           <FolderOpen size={15} className="text-gold-600" aria-hidden="true" />
           <span className="text-sm font-semibold text-ink-900">{group.name}</span>
           <span className="text-xs text-ink-900/40">
             {group.students.length} student{group.students.length === 1 ? "" : "s"}
           </span>
-        </span>
-        <ChevronDown
-          size={16}
-          className={`shrink-0 text-ink-900/40 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-          aria-hidden="true"
-        />
-      </button>
+        </button>
+        <div className="flex items-center gap-3">
+          {isDeletableBatch && <DeleteBatchControl group={group} />}
+          <button onClick={onToggle} aria-label={isExpanded ? "Collapse" : "Expand"}>
+            <ChevronDown
+              size={16}
+              className={`shrink-0 text-ink-900/40 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
+      </div>
       {isExpanded && <UserTable users={group.students} role={role} batches={batches} />}
     </div>
   );
