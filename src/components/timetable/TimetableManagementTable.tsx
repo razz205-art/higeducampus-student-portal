@@ -118,6 +118,14 @@ interface CourseGroup {
   slots: TimetableSlotItem[];
 }
 
+// One-time classes (specificDate set) sort chronologically by that date.
+// Recurring weekly classes (no specificDate) have no single date, so they
+// sort after every one-time class, by weekday then start time.
+function slotSortKey(s: TimetableSlotItem): string {
+  const time = s.startTime.padStart(5, "0");
+  return s.specificDate ? `0-${s.specificDate}-${time}` : `1-${s.dayOfWeek}-${time}`;
+}
+
 function groupByCourse(slots: TimetableSlotItem[]): CourseGroup[] {
   const map = new Map<string, CourseGroup>();
   for (const s of slots) {
@@ -131,7 +139,11 @@ function groupByCourse(slots: TimetableSlotItem[]): CourseGroup[] {
     }
     map.get(s.courseId)!.slots.push(s);
   }
-  return Array.from(map.values()).sort((a, b) => a.courseCode.localeCompare(b.courseCode));
+  const groups = Array.from(map.values()).sort((a, b) => a.courseCode.localeCompare(b.courseCode));
+  for (const g of groups) {
+    g.slots.sort((a, b) => slotSortKey(a).localeCompare(slotSortKey(b)));
+  }
+  return groups;
 }
 
 function CourseSection({
