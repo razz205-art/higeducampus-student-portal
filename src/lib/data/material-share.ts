@@ -118,6 +118,7 @@ export interface ShareLinkSummary {
   note: string | null;
   materialCount: number;
   extraLinkCount: number;
+  extraLinks: ExtraLink[];
   missingCount: number; // materials deleted since the link was made
   isActive: boolean;
   expiresAt: string | null; // ISO
@@ -147,6 +148,7 @@ export async function getShareLinksForAdmin(): Promise<ShareLinkSummary[]> {
       note: l.note,
       materialCount: present,
       extraLinkCount: parseExtraLinks(l.extraLinks).length,
+      extraLinks: parseExtraLinks(l.extraLinks),
       missingCount: l.materialIds.length - present,
       isActive: l.isActive,
       expiresAt: l.expiresAt?.toISOString() ?? null,

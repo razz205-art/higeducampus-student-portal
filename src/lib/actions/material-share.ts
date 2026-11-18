@@ -101,6 +101,62 @@ export async function createShareLinkAction(
   return { success: true, message: "Share link created.", token };
 }
 
+const updateSchema = z.object({
+  title: z.string().trim().min(2, "Give the link a title.").max(150),
+  note: z.string().trim().max(1000).optional(),
+  extraLinks: z.array(extraLinkSchema).max(100, "Too many added links."),
+  // "" removes the expiry.
+  expiresOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .or(z.literal("")),
+});
+
+export async function updateShareLinkAction(
+  id: string,
+  input: z.infer<typeof updateSchema>
+): Promise<ShareActionResult> {
+  const user = await requireAdmin();
+  if (!user) return { success: false, message: "You don't have permission to do this." };
+
+  const parsed = updateSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+  const { title, note, extraLinks, expiresOn } = parsed.data;
+
+  const link = await prisma.materialShareLink.findUnique({ where: { id } });
+  if (!link) return { success: false, message: "That link no longer exists." };
+  if (link.materialIds.length === 0 && extraLinks.length === 0) {
+    return { success: false, message: "A link needs at least one item — keep or add a link." };
+  }
+
+  let expiresAt: Date | null = null;
+  if (expiresOn) {
+    expiresAt = new Date(`${expiresOn}T23:59:59+05:30`);
+    if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() < Date.now()) {
+      return { success: false, message: "The expiry date must be today or later." };
+    }
+  }
+
+  await prisma.materialShareLink.update({
+    where: { id },
+    data: {
+      title,
+      note: note || null,
+      expiresAt,
+      extraLinks: extraLinks.map((x) => ({
+        title: x.title,
+        url: x.url,
+        type: x.type,
+        ...(x.description ? { description: x.description } : {}),
+      })),
+    },
+  });
+  revalidatePath(ADMIN_PATH);
+  return { success: true, message: "Link updated. The same web address keeps working." };
+}
+
 export async function setShareLinkActiveAction(
   id: string,
   isActive: boolean

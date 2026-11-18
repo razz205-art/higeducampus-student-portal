@@ -10,6 +10,7 @@ import {
   Link2,
   MessageCircle,
   Plus,
+  Pencil,
   Power,
   Trash2,
   Video,
@@ -19,6 +20,7 @@ import {
   createShareLinkAction,
   deleteShareLinkAction,
   setShareLinkActiveAction,
+  updateShareLinkAction,
 } from "@/lib/actions/material-share";
 import type { MaterialItem } from "@/lib/data/materials";
 import type { ExtraLink, ShareLinkSummary } from "@/lib/data/material-share";
@@ -77,6 +79,211 @@ function whatsappHref(title: string, url: string) {
   return `https://wa.me/?text=${encodeURIComponent(`${title}\n${url}`)}`;
 }
 
+function ExtraLinksEditor({
+  items,
+  onChange,
+}: {
+  items: ExtraLink[];
+  onChange: (next: ExtraLink[]) => void;
+}) {
+  const [extraTitle, setExtraTitle] = useState("");
+  const [extraUrl, setExtraUrl] = useState("");
+  const [extraType, setExtraType] = useState<ExtraLink["type"]>("DOCUMENT");
+  const [extraError, setExtraError] = useState("");
+
+  function addExtra() {
+    const url = extraUrl.trim();
+    const t = extraTitle.trim();
+    if (!t) return setExtraError("Enter a title for this link.");
+    if (!/^https?:\/\/\S+\.\S+/i.test(url)) {
+      return setExtraError("Paste the full link, starting with https://");
+    }
+    onChange([...items, { title: t, url, type: extraType }]);
+    setExtraTitle("");
+    setExtraUrl("");
+    setExtraType("DOCUMENT");
+    setExtraError("");
+  }
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <span className="text-sm font-medium text-ink-800">
+          Add a Drive or other link{" "}
+          <span className="font-normal text-ink-900/40">
+            (optional — for files that aren&apos;t in any course)
+          </span>
+        </span>
+        <p className="mt-0.5 text-xs text-ink-900/50">
+          In Google Drive, set the file to &ldquo;Anyone with the link can view&rdquo; before adding
+          it here.
+        </p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-[1fr_1.4fr_auto_auto]">
+        <input
+          value={extraTitle}
+          onChange={(e) => setExtraTitle(e.target.value)}
+          placeholder="Title, e.g. Model question paper"
+          className={fieldClass}
+        />
+        <input
+          value={extraUrl}
+          onChange={(e) => setExtraUrl(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addExtra();
+            }
+          }}
+          placeholder="https://drive.google.com/..."
+          className={fieldClass}
+        />
+        <select
+          value={extraType}
+          onChange={(e) => setExtraType(e.target.value as ExtraLink["type"])}
+          className={`${fieldClass} w-auto`}
+        >
+          <option value="DOCUMENT">Document</option>
+          <option value="VIDEO">Video</option>
+          <option value="LINK">Link</option>
+        </select>
+        <button
+          type="button"
+          onClick={addExtra}
+          className="flex items-center justify-center gap-1 rounded-sm border border-ink-900/20 px-3 py-2 text-sm font-semibold text-ink-900 hover:bg-ink-900/[0.04]"
+        >
+          <Plus size={14} aria-hidden="true" />
+          Add
+        </button>
+      </div>
+      {extraError && <p className="text-xs text-signal-error">{extraError}</p>}
+      {items.length > 0 && (
+        <ul className="divide-y divide-ink-900/[0.06] rounded-sm border border-ink-900/10 bg-white">
+          {items.map((x, i) => (
+            <li key={`${x.url}-${i}`} className="flex items-center gap-2.5 px-3 py-2">
+              <TypeIcon type={x.type} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm text-ink-900/80">{x.title}</span>
+                <span className="block truncate font-mono text-xs text-ink-900/40">{x.url}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => onChange(items.filter((_, j) => j !== i))}
+                className="text-ink-900/40 hover:text-signal-error"
+                aria-label={`Remove ${x.title}`}
+              >
+                <X size={15} aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function EditLinkForm({
+  link,
+  onDone,
+}: {
+  link: ShareLinkSummary;
+  onDone: (message: string | null) => void;
+}) {
+  const router = useRouter();
+  const [title, setTitle] = useState(link.title);
+  const [note, setNote] = useState(link.note ?? "");
+  const [expiresOn, setExpiresOn] = useState(
+    link.expiresAt ? new Date(link.expiresAt).toLocaleDateString("en-CA", { timeZone: IST }) : ""
+  );
+  const [extras, setExtras] = useState<ExtraLink[]>(link.extraLinks);
+  const [error, setError] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  function save() {
+    setError("");
+    startTransition(async () => {
+      const res = await updateShareLinkAction(link.id, {
+        title,
+        note: note || undefined,
+        extraLinks: extras,
+        expiresOn,
+      });
+      if (res.success) {
+        router.refresh();
+        onDone(res.message);
+      } else {
+        setError(res.message);
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-4 rounded-sm border border-gold-500/30 bg-gold-500/5 p-4">
+      <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+        <label className="block text-sm">
+          <span className="mb-1.5 block font-medium text-ink-800">Link title</span>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} className={fieldClass} />
+        </label>
+        <label className="block text-sm">
+          <span className="mb-1.5 block font-medium text-ink-800">Expires</span>
+          <span className="flex items-center gap-2">
+            <input
+              type="date"
+              value={expiresOn}
+              min={todayIst()}
+              onChange={(e) => setExpiresOn(e.target.value)}
+              className={fieldClass}
+            />
+            {expiresOn && (
+              <button
+                type="button"
+                onClick={() => setExpiresOn("")}
+                className="whitespace-nowrap text-xs font-medium text-ink-900/50 hover:text-ink-900"
+              >
+                No expiry
+              </button>
+            )}
+          </span>
+        </label>
+        <label className="block text-sm sm:col-span-2">
+          <span className="mb-1.5 block font-medium text-ink-800">Note for viewers</span>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            className={fieldClass}
+          />
+        </label>
+      </div>
+      <ExtraLinksEditor items={extras} onChange={setExtras} />
+      <p className="text-xs text-ink-900/50">
+        The link&apos;s web address stays the same, so anyone you already shared it with sees the
+        changes. {!expiresOn && "With no expiry date, the link works until you turn it off."}
+      </p>
+      {error && <p className="text-xs text-signal-error">{error}</p>}
+      <div className="flex flex-wrap gap-3">
+        <Button
+          type="button"
+          onClick={save}
+          isLoading={isPending}
+          disabled={title.trim().length < 2}
+          className="sm:w-auto sm:px-8"
+        >
+          Save changes
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => onDone(null)}
+          className="sm:w-auto sm:px-6"
+        >
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 interface ChapterGroup {
   key: string;
   courseName: string;
@@ -106,26 +313,9 @@ export default function ShareMaterialsView({
   const [notice, setNotice] = useState<{ variant: "success" | "error"; text: string } | null>(null);
   const [created, setCreated] = useState<{ title: string; url: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [extras, setExtras] = useState<ExtraLink[]>([]);
-  const [extraTitle, setExtraTitle] = useState("");
-  const [extraUrl, setExtraUrl] = useState("");
-  const [extraType, setExtraType] = useState<ExtraLink["type"]>("DOCUMENT");
-  const [extraError, setExtraError] = useState("");
-
-  function addExtra() {
-    const url = extraUrl.trim();
-    const t = extraTitle.trim();
-    if (!t) return setExtraError("Enter a title for this link.");
-    if (!/^https?:\/\/\S+\.\S+/i.test(url)) {
-      return setExtraError("Paste the full link, starting with https://");
-    }
-    setExtras((prev) => [...prev, { title: t, url, type: extraType }]);
-    setExtraTitle("");
-    setExtraUrl("");
-    setExtraType("DOCUMENT");
-    setExtraError("");
-  }
 
   const totalItems = selected.size + extras.length;
 
@@ -341,80 +531,8 @@ export default function ShareMaterialsView({
         )}
 
         {/* Links that aren't part of any course */}
-        <div className="space-y-3 border-t border-ink-900/10 pt-4">
-          <div>
-            <span className="text-sm font-medium text-ink-800">
-              Add a Drive or other link{" "}
-              <span className="font-normal text-ink-900/40">
-                (optional — for files that aren&apos;t in any course)
-              </span>
-            </span>
-            <p className="mt-0.5 text-xs text-ink-900/50">
-              In Google Drive, set the file to &ldquo;Anyone with the link can view&rdquo; before
-              adding it here.
-            </p>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-[1fr_1.4fr_auto_auto]">
-            <input
-              value={extraTitle}
-              onChange={(e) => setExtraTitle(e.target.value)}
-              placeholder="Title, e.g. Model question paper"
-              className={fieldClass}
-            />
-            <input
-              value={extraUrl}
-              onChange={(e) => setExtraUrl(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addExtra();
-                }
-              }}
-              placeholder="https://drive.google.com/..."
-              className={fieldClass}
-            />
-            <select
-              value={extraType}
-              onChange={(e) => setExtraType(e.target.value as ExtraLink["type"])}
-              className={`${fieldClass} w-auto`}
-            >
-              <option value="DOCUMENT">Document</option>
-              <option value="VIDEO">Video</option>
-              <option value="LINK">Link</option>
-            </select>
-            <button
-              type="button"
-              onClick={addExtra}
-              className="flex items-center justify-center gap-1 rounded-sm border border-ink-900/20 px-3 py-2 text-sm font-semibold text-ink-900 hover:bg-ink-900/[0.04]"
-            >
-              <Plus size={14} aria-hidden="true" />
-              Add
-            </button>
-          </div>
-          {extraError && <p className="text-xs text-signal-error">{extraError}</p>}
-          {extras.length > 0 && (
-            <ul className="divide-y divide-ink-900/[0.06] rounded-sm border border-ink-900/10">
-              {extras.map((x, i) => (
-                <li key={`${x.url}-${i}`} className="flex items-center gap-2.5 px-3 py-2">
-                  <TypeIcon type={x.type} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm text-ink-900/80">{x.title}</span>
-                    <span className="block truncate font-mono text-xs text-ink-900/40">
-                      {x.url}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setExtras((prev) => prev.filter((_, j) => j !== i))}
-                    className="text-ink-900/40 hover:text-signal-error"
-                    aria-label={`Remove ${x.title}`}
-                  >
-                    <X size={15} aria-hidden="true" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+        <div className="border-t border-ink-900/10 pt-4">
+          <ExtraLinksEditor items={extras} onChange={setExtras} />
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -537,6 +655,14 @@ export default function ShareMaterialsView({
                     </a>
                     <button
                       type="button"
+                      onClick={() => setEditingId(editingId === l.id ? null : l.id)}
+                      className="flex items-center gap-1 text-xs font-medium text-ink-900/60 hover:text-ink-900"
+                    >
+                      <Pencil size={13} aria-hidden="true" />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setActive(l.id, !l.isActive)}
                       disabled={isPending}
                       className="flex items-center gap-1 text-xs font-medium text-ink-900/60 hover:text-ink-900 disabled:opacity-50"
@@ -572,6 +698,15 @@ export default function ShareMaterialsView({
                       </button>
                     )}
                   </div>
+                  {editingId === l.id && (
+                    <EditLinkForm
+                      link={l}
+                      onDone={(message) => {
+                        setEditingId(null);
+                        if (message) setNotice({ variant: "success", text: message });
+                      }}
+                    />
+                  )}
                 </li>
               );
             })}
