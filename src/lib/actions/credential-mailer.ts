@@ -523,3 +523,80 @@ export async function searchCredentialRecipientsAction(
     })),
   };
 }
+
+/**
+ * Records a list that was already emailed (e.g. before history existed)
+ * into Send history WITHOUT sending anything. Every valid row is stored as
+ * SENT at the admin-supplied time.
+ */
+export async function recordPastSendAction(
+  rows: Omit<CredentialRow, "error">[],
+  options: z.infer<typeof optionsSchema>,
+  batchInfo: z.infer<typeof batchInfoSchema>,
+  sentAtIso: string
+): Promise<{ success: boolean; message: string; results: SentRowResult[]; batchId?: string }> {
+  const session = await auth();
+  if (!session?.user || !isAdmin(session.user.role)) {
+    return { success: false, message: "You don't have permission to do this.", results: [] };
+  }
+  const opts = optionsSchema.safeParse(options);
+  const info = batchInfoSchema.safeParse(batchInfo);
+  if (!opts.success || !info.success) {
+    return {
+      success: false,
+      message:
+        (!info.success ? info.error.issues[0]?.message : opts.error?.issues[0]?.message) ??
+        "Invalid input.",
+      results: [],
+    };
+  }
+  const sentAt = new Date(sentAtIso);
+  if (Number.isNaN(sentAt.getTime()) || sentAt.getTime() > Date.now() + 60_000) {
+    return { success: false, message: "Enter a valid date and time in the past.", results: [] };
+  }
+  const parsedRows = z.array(sendRowSchema).max(MAX_ROWS).safeParse(rows);
+  if (!parsedRows.success || parsedRows.data.length === 0) {
+    return { success: false, message: "There are no valid rows to record.", results: [] };
+  }
+
+  try {
+    const batch = await prisma.credentialMailBatch.create({
+      data: {
+        label: info.data.label,
+        subject: opts.data.subject,
+        fileName: info.data.fileName ?? null,
+        sentById: session.user.id ?? null,
+        sentByName: session.user.name ?? session.user.email ?? null,
+        createdAt: sentAt,
+        recipients: {
+          createMany: {
+            data: parsedRows.data.map((r) => ({
+              rowNumber: r.row,
+              name: r.name,
+              username: r.username,
+              email: r.email,
+              status: "SENT",
+              error: null,
+              sentAt,
+            })),
+          },
+        },
+      },
+    });
+    revalidatePath("/academic-admin/send-credentials");
+    const n = parsedRows.data.length;
+    return {
+      success: true,
+      message: `${n} ${n === 1 ? "person" : "people"} saved to Send history. No emails were sent.`,
+      results: parsedRows.data.map((r) => ({
+        row: r.row,
+        email: r.email,
+        status: "sent" as const,
+        sentAt: sentAt.toISOString(),
+      })),
+      batchId: batch.id,
+    };
+  } catch {
+    return { success: false, message: "Couldn't save to history. Please try again.", results: [] };
+  }
+}

@@ -2,11 +2,21 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Download, Mail, Eye, EyeOff, RotateCcw, FileSpreadsheet } from "lucide-react";
+import {
+  Upload,
+  Download,
+  Mail,
+  Eye,
+  EyeOff,
+  RotateCcw,
+  FileSpreadsheet,
+  History,
+} from "lucide-react";
 import {
   parseCredentialsFileAction,
   previewCredentialEmailAction,
   sendBulkCredentialsAction,
+  recordPastSendAction,
   type CredentialRow,
   type SentRowResult,
 } from "@/lib/actions/credential-mailer";
@@ -38,6 +48,12 @@ function formatDateTime(iso: string): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+/** Current IST time as a value for <input type="datetime-local">. */
+function nowIstLocalInput(): string {
+  const d = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  return d.toISOString().slice(0, 16);
 }
 
 function defaultBatchLabel(fileName: string): string {
@@ -75,6 +91,8 @@ export default function CredentialMailerView() {
   const [showPasswords, setShowPasswords] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [recordOpen, setRecordOpen] = useState(false);
+  const [pastSentAt, setPastSentAt] = useState(nowIstLocalInput);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -96,6 +114,7 @@ export default function CredentialMailerView() {
     setNotice(null);
     setPreviewHtml(null);
     setConfirming(false);
+    setRecordOpen(false);
     startTransition(async () => {
       const fd = new FormData();
       fd.append("file", file);
@@ -143,6 +162,31 @@ export default function CredentialMailerView() {
           for (const r of res.results) next[r.row] = r;
           return next;
         });
+      }
+      setNotice({ variant: res.success ? "success" : "error", text: res.message });
+      router.refresh();
+    });
+  }
+
+  function recordPast() {
+    startTransition(async () => {
+      const res = await recordPastSendAction(
+        validRows.map(({ row, name, username, password, email }) => ({
+          row,
+          name,
+          username,
+          password,
+          email,
+        })),
+        options,
+        { label: batchLabel, fileName: fileName ?? undefined },
+        // datetime-local has no zone; the admin enters India time.
+        `${pastSentAt}:00+05:30`
+      );
+      if (res.batchId) setBatchId(res.batchId);
+      if (res.results.length > 0) {
+        setResults(Object.fromEntries(res.results.map((r) => [r.row, r])));
+        setRecordOpen(false);
       }
       setNotice({ variant: res.success ? "success" : "error", text: res.message });
       router.refresh();
@@ -412,6 +456,60 @@ export default function CredentialMailerView() {
                     Cancel
                   </Button>
                 </>
+              )}
+            </div>
+          )}
+
+          {Object.keys(results).length === 0 && validRows.length > 0 && (
+            <div className="border-t border-ink-900/10 pt-4">
+              {!recordOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setRecordOpen(true)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-ink-900/50 hover:text-ink-900"
+                >
+                  <History size={13} aria-hidden="true" />
+                  Already emailed this list earlier? Save it to history without sending
+                </button>
+              ) : (
+                <div className="space-y-3 rounded-sm border border-gold-500/30 bg-gold-500/5 p-4">
+                  <p className="text-sm font-semibold text-ink-900">Save to history only</p>
+                  <p className="text-xs text-ink-900/60">
+                    Records all {validRows.length} valid rows as <strong>Sent</strong> under the
+                    batch name above. <strong>No emails will be sent.</strong> Use this only for a
+                    list that was already emailed.
+                  </p>
+                  <label className="flex flex-wrap items-center gap-2 text-sm text-ink-800">
+                    When it was sent (India time)
+                    <input
+                      type="datetime-local"
+                      value={pastSentAt}
+                      max={nowIstLocalInput()}
+                      onChange={(e) => setPastSentAt(e.target.value)}
+                      className={`${fieldClass} w-auto`}
+                    />
+                  </label>
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={recordPast}
+                      isLoading={isPending}
+                      disabled={batchLabel.trim().length < 2 || !pastSentAt}
+                      className="sm:w-auto sm:px-6"
+                    >
+                      Save {validRows.length} to history
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setRecordOpen(false)}
+                      className="sm:w-auto sm:px-4"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
           )}
