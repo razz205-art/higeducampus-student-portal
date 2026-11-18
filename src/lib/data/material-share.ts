@@ -159,3 +159,21 @@ export async function getShareLinksForAdmin(): Promise<ShareLinkSummary[]> {
     };
   });
 }
+
+/**
+ * Title/note for link previews (WhatsApp etc.). Read-only — unlike
+ * getSharedMaterialsByToken it does not count a view, since chat apps
+ * fetch the page just to build the preview.
+ */
+export async function getShareLinkPreview(
+  token: string
+): Promise<{ title: string; note: string | null } | null> {
+  if (!/^[A-Za-z0-9_-]{8,40}$/.test(token)) return null;
+  const link = await prisma.materialShareLink.findUnique({
+    where: { token },
+    select: { title: true, note: true, isActive: true, expiresAt: true },
+  });
+  if (!link || !link.isActive) return null;
+  if (link.expiresAt && link.expiresAt.getTime() < Date.now()) return null;
+  return { title: link.title, note: link.note };
+}

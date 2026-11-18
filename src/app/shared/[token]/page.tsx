@@ -1,14 +1,48 @@
 import Image from "next/image";
 import { ExternalLink, FileText, Link2, LinkIcon, Video } from "lucide-react";
-import { getSharedMaterialsByToken, type SharedMaterial } from "@/lib/data/material-share";
+import type { Metadata } from "next";
+import {
+  getShareLinkPreview,
+  getSharedMaterialsByToken,
+  type SharedMaterial,
+} from "@/lib/data/material-share";
 
 // Intentionally public — no auth. Admins share these links (e.g. on
 // WhatsApp) with people who don't have a portal account.
 export const dynamic = "force-dynamic";
-export const metadata = {
-  title: "Study Materials",
-  robots: { index: false, follow: false },
+const PREVIEW_IMAGE = {
+  url: "https://portal.higeducampus.in/og-share.png",
+  width: 1200,
+  height: 630,
+  alt: "HiG EDU CAMPUS",
 };
+
+// Link previews (WhatsApp, etc.) show the full HiG EDU CAMPUS logo and the
+// link's own title and note instead of the generic site icon and title.
+export async function generateMetadata({
+  params,
+}: {
+  params: { token: string };
+}): Promise<Metadata> {
+  const preview = await getShareLinkPreview(params.token).catch(() => null);
+  const title = preview?.title ?? "Study Materials";
+  const description = preview?.note
+    ? preview.note.slice(0, 200)
+    : "Study materials shared by HiG EDUCAMPUS";
+  return {
+    title: { absolute: `${title} | HiG EDUCAMPUS` },
+    description,
+    robots: { index: false, follow: false },
+    openGraph: {
+      title,
+      description,
+      siteName: "HiG EDUCAMPUS",
+      type: "website",
+      images: [PREVIEW_IMAGE],
+    },
+    twitter: { card: "summary_large_image", title, description, images: [PREVIEW_IMAGE.url] },
+  };
+}
 
 const TYPE_LABEL: Record<SharedMaterial["type"], string> = {
   DOCUMENT: "Document",
