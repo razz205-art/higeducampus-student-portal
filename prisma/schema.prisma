@@ -861,3 +861,24 @@ model CredentialMailRecipient {
   @@unique([batchId, rowNumber])
   @@map("credential_mail_recipients")
 }
+
+// Public share links for study materials (Academics > Share Materials).
+// Anyone with the link can view the selected materials without logging in.
+// Standalone: no foreign keys, so deleting a material just drops it from
+// the link's list, and deleting a link never touches the materials.
+model MaterialShareLink {
+  id            String    @id @default(cuid())
+  token         String    @unique
+  title         String
+  note          String?
+  materialIds   String[]
+  isActive      Boolean   @default(true)
+  expiresAt     DateTime?
+  viewCount     Int       @default(0)
+  lastViewedAt  DateTime?
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime  @default(now())
+
+  @@map("material_share_links")
+}
