@@ -47,9 +47,21 @@ function TypeIcon({ type }: { type: MaterialItem["type"] }) {
   return <Icon size={14} className="shrink-0 text-ink-900/40" aria-hidden="true" />;
 }
 
+const PUBLIC_BASE = "https://portal.higeducampus.in";
+
+/**
+ * Base for share links. Always the portal's own domain in production, even
+ * when this admin page is opened via a *.vercel.app address; otherwise
+ * (e.g. local development) the current origin.
+ */
 function useOrigin() {
-  const [origin, setOrigin] = useState("");
-  useEffect(() => setOrigin(window.location.origin), []);
+  const [origin, setOrigin] = useState(PUBLIC_BASE);
+  useEffect(() => {
+    const host = window.location.hostname;
+    if (host !== "portal.higeducampus.in" && !host.endsWith(".vercel.app")) {
+      setOrigin(window.location.origin);
+    }
+  }, []);
   return origin;
 }
 
@@ -386,7 +398,7 @@ export default function ShareMaterialsView({
         expiresOn,
       });
       if (res.success && res.token) {
-        setCreated({ title, url: `${origin}/shared/${res.token}` });
+        setCreated({ title, url: `${origin}/s/${res.token}` });
         setTitle("");
         setNote("");
         setExpiresOn("");
@@ -604,7 +616,7 @@ export default function ShareMaterialsView({
         ) : (
           <ul className="space-y-2">
             {links.map((l) => {
-              const url = `${origin}/shared/${l.token}`;
+              const url = `${origin}/s/${l.token}`;
               const expired = !!l.expiresAt && new Date(l.expiresAt).getTime() < Date.now();
               return (
                 <li key={l.id} className="space-y-2 rounded-sm border border-ink-900/10 px-4 py-3">
