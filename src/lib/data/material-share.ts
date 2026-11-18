@@ -48,17 +48,25 @@ export function parseExtraLinks(value: unknown): ExtraLink[] {
 }
 
 export type SharedLinkResult =
-  | { status: "ok"; title: string; note: string | null; materials: SharedMaterial[] }
-  | { status: "not_found" | "disabled" | "expired" };
+  | {
+      status: "ok";
+      title: string;
+      note: string | null;
+      brand: string;
+      materials: SharedMaterial[];
+    }
+  | { status: "not_found" | "disabled" | "expired"; brand: string };
 
 /** Resolves a public link and counts the visit. */
 export async function getSharedMaterialsByToken(token: string): Promise<SharedLinkResult> {
-  if (!/^[A-Za-z0-9_-]{8,40}$/.test(token)) return { status: "not_found" };
+  if (!/^[A-Za-z0-9_-]{8,40}$/.test(token)) return { status: "not_found", brand: "HIG" };
 
   const link = await prisma.materialShareLink.findUnique({ where: { token } });
-  if (!link) return { status: "not_found" };
-  if (!link.isActive) return { status: "disabled" };
-  if (link.expiresAt && link.expiresAt.getTime() < Date.now()) return { status: "expired" };
+  if (!link) return { status: "not_found", brand: "HIG" };
+  if (!link.isActive) return { status: "disabled", brand: link.brand };
+  if (link.expiresAt && link.expiresAt.getTime() < Date.now()) {
+    return { status: "expired", brand: link.brand };
+  }
 
   const rows = await prisma.studyMaterial.findMany({
     where: { id: { in: link.materialIds } },
@@ -108,7 +116,7 @@ export async function getSharedMaterialsByToken(token: string): Promise<SharedLi
     })
     .catch(() => {});
 
-  return { status: "ok", title: link.title, note: link.note, materials };
+  return { status: "ok", title: link.title, note: link.note, brand: link.brand, materials };
 }
 
 export interface ShareLinkSummary {
@@ -121,6 +129,7 @@ export interface ShareLinkSummary {
   extraLinks: ExtraLink[];
   missingCount: number; // materials deleted since the link was made
   isActive: boolean;
+  brand: string;
   expiresAt: string | null; // ISO
   viewCount: number;
   lastViewedAt: string | null; // ISO
@@ -151,6 +160,7 @@ export async function getShareLinksForAdmin(): Promise<ShareLinkSummary[]> {
       extraLinks: parseExtraLinks(l.extraLinks),
       missingCount: l.materialIds.length - present,
       isActive: l.isActive,
+      brand: l.brand,
       expiresAt: l.expiresAt?.toISOString() ?? null,
       viewCount: l.viewCount,
       lastViewedAt: l.lastViewedAt?.toISOString() ?? null,
@@ -167,13 +177,13 @@ export async function getShareLinksForAdmin(): Promise<ShareLinkSummary[]> {
  */
 export async function getShareLinkPreview(
   token: string
-): Promise<{ title: string; note: string | null } | null> {
+): Promise<{ title: string; note: string | null; brand: string } | null> {
   if (!/^[A-Za-z0-9_-]{8,40}$/.test(token)) return null;
   const link = await prisma.materialShareLink.findUnique({
     where: { token },
-    select: { title: true, note: true, isActive: true, expiresAt: true },
+    select: { title: true, note: true, brand: true, isActive: true, expiresAt: true },
   });
   if (!link || !link.isActive) return null;
   if (link.expiresAt && link.expiresAt.getTime() < Date.now()) return null;
-  return { title: link.title, note: link.note };
+  return { title: link.title, note: link.note, brand: link.brand };
 }

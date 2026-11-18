@@ -28,6 +28,7 @@ import type { CourseOption } from "@/types/attendance";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
 import Badge from "@/components/ui/Badge";
+import { SHARE_BRANDS, SHARE_BRAND_KEYS, type ShareBrandKey } from "@/lib/share-brands";
 
 const fieldClass =
   "w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-900/30 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500";
@@ -89,6 +90,33 @@ function CopyButton({ text, label = "Copy link" }: { text: string; label?: strin
 
 function whatsappHref(title: string, url: string) {
   return `https://wa.me/?text=${encodeURIComponent(`${title}\n${url}`)}`;
+}
+
+function BrandPicker({
+  value,
+  onChange,
+}: {
+  value: ShareBrandKey;
+  onChange: (b: ShareBrandKey) => void;
+}) {
+  return (
+    <label className="block text-sm">
+      <span className="mb-1.5 block font-medium text-ink-800">
+        Branding <span className="font-normal text-ink-900/40">(logo on the shared page)</span>
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as ShareBrandKey)}
+        className={fieldClass}
+      >
+        {SHARE_BRAND_KEYS.map((k) => (
+          <option key={k} value={k}>
+            {SHARE_BRANDS[k].label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
 function ExtraLinksEditor({
@@ -208,6 +236,9 @@ function EditLinkForm({
     link.expiresAt ? new Date(link.expiresAt).toLocaleDateString("en-CA", { timeZone: IST }) : ""
   );
   const [extras, setExtras] = useState<ExtraLink[]>(link.extraLinks);
+  const [brand, setBrand] = useState<ShareBrandKey>(
+    (SHARE_BRAND_KEYS as string[]).includes(link.brand) ? (link.brand as ShareBrandKey) : "HIG"
+  );
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -219,6 +250,7 @@ function EditLinkForm({
         note: note || undefined,
         extraLinks: extras,
         expiresOn,
+        brand,
       });
       if (res.success) {
         router.refresh();
@@ -257,6 +289,9 @@ function EditLinkForm({
             )}
           </span>
         </label>
+        <div className="sm:col-span-2">
+          <BrandPicker value={brand} onChange={setBrand} />
+        </div>
         <label className="block text-sm sm:col-span-2">
           <span className="mb-1.5 block font-medium text-ink-800">Note for viewers</span>
           <textarea
@@ -328,6 +363,7 @@ export default function ShareMaterialsView({
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [extras, setExtras] = useState<ExtraLink[]>([]);
+  const [brand, setBrand] = useState<ShareBrandKey>("HIG");
 
   const totalItems = selected.size + extras.length;
 
@@ -396,6 +432,7 @@ export default function ShareMaterialsView({
         materialIds: ids,
         extraLinks: extras,
         expiresOn,
+        brand,
       });
       if (res.success && res.token) {
         setCreated({ title, url: `${origin}/s/${res.token}` });
@@ -456,6 +493,9 @@ export default function ShareMaterialsView({
               className={fieldClass}
             />
           </label>
+          <div className="sm:col-span-2">
+            <BrandPicker value={brand} onChange={setBrand} />
+          </div>
           <label className="block text-sm sm:col-span-2">
             <span className="mb-1.5 block font-medium text-ink-800">
               Note for viewers <span className="font-normal text-ink-900/40">(optional)</span>
@@ -636,13 +676,20 @@ export default function ShareMaterialsView({
                           ` · ${expired ? "expired" : "expires"} ${fmtDate(l.expiresAt)}`}
                       </p>
                     </div>
-                    {!l.isActive ? (
-                      <Badge variant="neutral">Off</Badge>
-                    ) : expired ? (
-                      <Badge variant="danger">Expired</Badge>
-                    ) : (
-                      <Badge variant="success">Active</Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {l.brand !== "HIG" && SHARE_BRANDS[l.brand as ShareBrandKey] && (
+                        <Badge variant="neutral">
+                          {SHARE_BRANDS[l.brand as ShareBrandKey].name}
+                        </Badge>
+                      )}
+                      {!l.isActive ? (
+                        <Badge variant="neutral">Off</Badge>
+                      ) : expired ? (
+                        <Badge variant="danger">Expired</Badge>
+                      ) : (
+                        <Badge variant="success">Active</Badge>
+                      )}
+                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-4">
                     <span className="truncate font-mono text-xs text-ink-900/40">{url}</span>

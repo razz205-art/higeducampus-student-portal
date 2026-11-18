@@ -5,6 +5,14 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
+import { SHARE_BRAND_KEYS, type ShareBrandKey } from "@/lib/share-brands";
+
+const brandSchema = z
+  .string()
+  .refine(
+    (b): b is ShareBrandKey => (SHARE_BRAND_KEYS as string[]).includes(b),
+    "Pick a branding."
+  );
 
 const ADMIN_PATH = "/academic-admin/share-materials";
 
@@ -37,6 +45,7 @@ const createSchema = z.object({
   note: z.string().trim().max(1000).optional(),
   materialIds: z.array(z.string().min(1)).max(300, "Too many materials for one link."),
   extraLinks: z.array(extraLinkSchema).max(100, "Too many added links.").default([]),
+  brand: brandSchema.default("HIG"),
   // "YYYY-MM-DD" — link works through the end of that day (India time).
   expiresOn: z
     .string()
@@ -55,7 +64,7 @@ export async function createShareLinkAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { title, note, materialIds, extraLinks, expiresOn } = parsed.data;
+  const { title, note, materialIds, extraLinks, expiresOn, brand } = parsed.data;
   if (materialIds.length === 0 && extraLinks.length === 0) {
     return { success: false, message: "Select a material or add a link first." };
   }
@@ -86,6 +95,7 @@ export async function createShareLinkAction(
       title,
       note: note || null,
       materialIds: uniqueIds,
+      brand,
       extraLinks: extraLinks.map((x) => ({
         title: x.title,
         url: x.url,
@@ -105,6 +115,7 @@ const updateSchema = z.object({
   title: z.string().trim().min(2, "Give the link a title.").max(150),
   note: z.string().trim().max(1000).optional(),
   extraLinks: z.array(extraLinkSchema).max(100, "Too many added links."),
+  brand: brandSchema,
   // "" removes the expiry.
   expiresOn: z
     .string()
@@ -123,7 +134,7 @@ export async function updateShareLinkAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { title, note, extraLinks, expiresOn } = parsed.data;
+  const { title, note, extraLinks, expiresOn, brand } = parsed.data;
 
   const link = await prisma.materialShareLink.findUnique({ where: { id } });
   if (!link) return { success: false, message: "That link no longer exists." };
@@ -144,6 +155,7 @@ export async function updateShareLinkAction(
     data: {
       title,
       note: note || null,
+      brand,
       expiresAt,
       extraLinks: extraLinks.map((x) => ({
         title: x.title,
