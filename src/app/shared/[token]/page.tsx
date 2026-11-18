@@ -29,17 +29,15 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-ink-950 px-4 py-10">
       <div className="mx-auto w-full max-w-2xl">
-        <div className="mb-8 text-center">
+        <div className="-mt-4 mb-2 text-center">
           <Image
-            src="/hig-educampus-mark.png"
+            src="/hig-educampus-logo.png"
             alt="HiG EDUCAMPUS"
-            width={44}
-            height={44}
-            className="mx-auto mb-3 h-11 w-11"
+            width={280}
+            height={280}
+            className="mx-auto h-auto w-44"
+            priority
           />
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-400">
-            HiG EDUCAMPUS
-          </p>
         </div>
         {children}
       </div>
