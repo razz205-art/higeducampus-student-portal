@@ -20,6 +20,33 @@ export interface SharedMaterial {
   chapterOrder: number | null;
 }
 
+export interface ExtraLink {
+  title: string;
+  url: string;
+  type: "DOCUMENT" | "VIDEO" | "LINK";
+  description?: string;
+}
+
+/** Safely reads the stored JSON — ignores anything malformed. */
+export function parseExtraLinks(value: unknown): ExtraLink[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((v) => {
+    if (!v || typeof v !== "object") return [];
+    const o = v as Record<string, unknown>;
+    if (typeof o.title !== "string" || typeof o.url !== "string") return [];
+    if (!/^https?:\/\//i.test(o.url)) return [];
+    const type = o.type === "VIDEO" || o.type === "DOCUMENT" ? o.type : "LINK";
+    return [
+      {
+        title: o.title,
+        url: o.url,
+        type,
+        description: typeof o.description === "string" && o.description ? o.description : undefined,
+      },
+    ];
+  });
+}
+
 export type SharedLinkResult =
   | { status: "ok"; title: string; note: string | null; materials: SharedMaterial[] }
   | { status: "not_found" | "disabled" | "expired" };
@@ -58,6 +85,21 @@ export async function getSharedMaterialsByToken(token: string): Promise<SharedLi
       chapterOrder: m.module?.order ?? null,
     }));
 
+  // Links added directly on the share page come after the course materials.
+  parseExtraLinks(link.extraLinks).forEach((x, i) => {
+    materials.push({
+      id: `extra-${i}`,
+      title: x.title,
+      description: x.description ?? null,
+      type: x.type,
+      url: x.url,
+      fileSize: null,
+      courseName: "",
+      chapterTitle: null,
+      chapterOrder: null,
+    });
+  });
+
   // Best-effort view counter; never block the page on it.
   prisma.materialShareLink
     .update({
@@ -75,6 +117,7 @@ export interface ShareLinkSummary {
   title: string;
   note: string | null;
   materialCount: number;
+  extraLinkCount: number;
   missingCount: number; // materials deleted since the link was made
   isActive: boolean;
   expiresAt: string | null; // ISO
@@ -103,6 +146,7 @@ export async function getShareLinksForAdmin(): Promise<ShareLinkSummary[]> {
       title: l.title,
       note: l.note,
       materialCount: present,
+      extraLinkCount: parseExtraLinks(l.extraLinks).length,
       missingCount: l.materialIds.length - present,
       isActive: l.isActive,
       expiresAt: l.expiresAt?.toISOString() ?? null,

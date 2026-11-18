@@ -9,9 +9,11 @@ import {
   FileText,
   Link2,
   MessageCircle,
+  Plus,
   Power,
   Trash2,
   Video,
+  X,
 } from "lucide-react";
 import {
   createShareLinkAction,
@@ -19,7 +21,7 @@ import {
   setShareLinkActiveAction,
 } from "@/lib/actions/material-share";
 import type { MaterialItem } from "@/lib/data/materials";
-import type { ShareLinkSummary } from "@/lib/data/material-share";
+import type { ExtraLink, ShareLinkSummary } from "@/lib/data/material-share";
 import type { CourseOption } from "@/types/attendance";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
@@ -105,6 +107,28 @@ export default function ShareMaterialsView({
   const [created, setCreated] = useState<{ title: string; url: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
+  const [extras, setExtras] = useState<ExtraLink[]>([]);
+  const [extraTitle, setExtraTitle] = useState("");
+  const [extraUrl, setExtraUrl] = useState("");
+  const [extraType, setExtraType] = useState<ExtraLink["type"]>("DOCUMENT");
+  const [extraError, setExtraError] = useState("");
+
+  function addExtra() {
+    const url = extraUrl.trim();
+    const t = extraTitle.trim();
+    if (!t) return setExtraError("Enter a title for this link.");
+    if (!/^https?:\/\/\S+\.\S+/i.test(url)) {
+      return setExtraError("Paste the full link, starting with https://");
+    }
+    setExtras((prev) => [...prev, { title: t, url, type: extraType }]);
+    setExtraTitle("");
+    setExtraUrl("");
+    setExtraType("DOCUMENT");
+    setExtraError("");
+  }
+
+  const totalItems = selected.size + extras.length;
+
   const groups = useMemo<ChapterGroup[]>(() => {
     const visible =
       courseFilter === "all" ? materials : materials.filter((m) => m.courseId === courseFilter);
@@ -168,6 +192,7 @@ export default function ShareMaterialsView({
         title,
         note: note || undefined,
         materialIds: ids,
+        extraLinks: extras,
         expiresOn,
       });
       if (res.success && res.token) {
@@ -176,6 +201,7 @@ export default function ShareMaterialsView({
         setNote("");
         setExpiresOn("");
         setSelected(new Set());
+        setExtras([]);
         router.refresh();
       } else {
         setNotice({ variant: "error", text: res.message });
@@ -314,15 +340,92 @@ export default function ShareMaterialsView({
           </div>
         )}
 
+        {/* Links that aren't part of any course */}
+        <div className="space-y-3 border-t border-ink-900/10 pt-4">
+          <div>
+            <span className="text-sm font-medium text-ink-800">
+              Add a Drive or other link{" "}
+              <span className="font-normal text-ink-900/40">
+                (optional — for files that aren&apos;t in any course)
+              </span>
+            </span>
+            <p className="mt-0.5 text-xs text-ink-900/50">
+              In Google Drive, set the file to &ldquo;Anyone with the link can view&rdquo; before
+              adding it here.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-[1fr_1.4fr_auto_auto]">
+            <input
+              value={extraTitle}
+              onChange={(e) => setExtraTitle(e.target.value)}
+              placeholder="Title, e.g. Model question paper"
+              className={fieldClass}
+            />
+            <input
+              value={extraUrl}
+              onChange={(e) => setExtraUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addExtra();
+                }
+              }}
+              placeholder="https://drive.google.com/..."
+              className={fieldClass}
+            />
+            <select
+              value={extraType}
+              onChange={(e) => setExtraType(e.target.value as ExtraLink["type"])}
+              className={`${fieldClass} w-auto`}
+            >
+              <option value="DOCUMENT">Document</option>
+              <option value="VIDEO">Video</option>
+              <option value="LINK">Link</option>
+            </select>
+            <button
+              type="button"
+              onClick={addExtra}
+              className="flex items-center justify-center gap-1 rounded-sm border border-ink-900/20 px-3 py-2 text-sm font-semibold text-ink-900 hover:bg-ink-900/[0.04]"
+            >
+              <Plus size={14} aria-hidden="true" />
+              Add
+            </button>
+          </div>
+          {extraError && <p className="text-xs text-signal-error">{extraError}</p>}
+          {extras.length > 0 && (
+            <ul className="divide-y divide-ink-900/[0.06] rounded-sm border border-ink-900/10">
+              {extras.map((x, i) => (
+                <li key={`${x.url}-${i}`} className="flex items-center gap-2.5 px-3 py-2">
+                  <TypeIcon type={x.type} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm text-ink-900/80">{x.title}</span>
+                    <span className="block truncate font-mono text-xs text-ink-900/40">
+                      {x.url}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setExtras((prev) => prev.filter((_, j) => j !== i))}
+                    className="text-ink-900/40 hover:text-signal-error"
+                    aria-label={`Remove ${x.title}`}
+                  >
+                    <X size={15} aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <div className="flex flex-wrap items-center gap-3">
           <Button
             type="button"
             onClick={create}
             isLoading={isPending}
-            disabled={selected.size === 0 || title.trim().length < 2}
+            disabled={totalItems === 0 || title.trim().length < 2}
             className="sm:w-auto sm:px-8"
           >
-            Create link{selected.size > 0 ? ` (${selected.size} selected)` : ""}
+            Create link{totalItems > 0 ? ` (${totalItems} item${totalItems === 1 ? "" : "s"})` : ""}
           </Button>
           {selected.size > 0 && (
             <button
@@ -392,6 +495,8 @@ export default function ShareMaterialsView({
                       <p className="truncate text-sm font-semibold text-ink-900">{l.title}</p>
                       <p className="text-xs text-ink-900/50">
                         {l.materialCount} material{l.materialCount === 1 ? "" : "s"}
+                        {l.extraLinkCount > 0 &&
+                          ` + ${l.extraLinkCount} added link${l.extraLinkCount === 1 ? "" : "s"}`}
                         {l.missingCount > 0 && ` (${l.missingCount} since deleted)`} · created{" "}
                         {fmtDate(l.createdAt)}
                         {l.createdByName && ` by ${l.createdByName}`} · opened {l.viewCount} time

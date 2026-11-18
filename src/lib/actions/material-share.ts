@@ -21,13 +21,22 @@ export interface ShareActionResult {
   token?: string;
 }
 
+const extraLinkSchema = z.object({
+  title: z.string().trim().min(1, "Each added link needs a title.").max(200),
+  url: z
+    .string()
+    .trim()
+    .url("One of the added links isn't a valid web address.")
+    .refine((u) => /^https?:\/\//i.test(u), "Links must start with https://"),
+  type: z.enum(["DOCUMENT", "VIDEO", "LINK"]),
+  description: z.string().trim().max(300).optional(),
+});
+
 const createSchema = z.object({
   title: z.string().trim().min(2, "Give the link a title.").max(150),
   note: z.string().trim().max(1000).optional(),
-  materialIds: z
-    .array(z.string().min(1))
-    .min(1, "Select at least one material.")
-    .max(300, "Too many materials for one link."),
+  materialIds: z.array(z.string().min(1)).max(300, "Too many materials for one link."),
+  extraLinks: z.array(extraLinkSchema).max(100, "Too many added links.").default([]),
   // "YYYY-MM-DD" — link works through the end of that day (India time).
   expiresOn: z
     .string()
@@ -46,7 +55,10 @@ export async function createShareLinkAction(
   if (!parsed.success) {
     return { success: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
-  const { title, note, materialIds, expiresOn } = parsed.data;
+  const { title, note, materialIds, extraLinks, expiresOn } = parsed.data;
+  if (materialIds.length === 0 && extraLinks.length === 0) {
+    return { success: false, message: "Select a material or add a link first." };
+  }
 
   const uniqueIds = Array.from(new Set(materialIds));
   const found = await prisma.studyMaterial.count({ where: { id: { in: uniqueIds } } });
@@ -74,6 +86,12 @@ export async function createShareLinkAction(
       title,
       note: note || null,
       materialIds: uniqueIds,
+      extraLinks: extraLinks.map((x) => ({
+        title: x.title,
+        url: x.url,
+        type: x.type,
+        ...(x.description ? { description: x.description } : {}),
+      })),
       expiresAt,
       createdById: user.id ?? null,
       createdByName: user.name ?? user.email ?? null,

@@ -872,6 +872,9 @@ model MaterialShareLink {
   title         String
   note          String?
   materialIds   String[]
+  // Links added directly on the share page (e.g. a Google Drive file that
+  // isn't in any course): [{ title, url, type, description? }]
+  extraLinks    Json      @default("[]")
   isActive      Boolean   @default(true)
   expiresAt     DateTime?
   viewCount     Int       @default(0)
