@@ -13,6 +13,7 @@ import {
   Library,
   MessagesSquare,
   Users,
+  Mail,
   Layers,
   GraduationCap,
   ClipboardList,
@@ -114,6 +115,7 @@ export function getNavSections(role: Role): NavSection[] {
             { label: "Students", href: "/academic-admin/students", icon: Users },
             { label: "Batches", href: "/academic-admin/batches", icon: Layers },
             { label: "Faculty", href: "/academic-admin/faculty", icon: GraduationCap },
+            { label: "Send Credentials", href: "/academic-admin/send-credentials", icon: Mail },
           ],
         },
         {
@@ -146,6 +148,7 @@ export function getNavSections(role: Role): NavSection[] {
             { label: "Students", href: "/academic-admin/students", icon: Users },
             { label: "Batches", href: "/academic-admin/batches", icon: Layers },
             { label: "Faculty", href: "/academic-admin/faculty", icon: GraduationCap },
+            { label: "Send Credentials", href: "/academic-admin/send-credentials", icon: Mail },
           ],
         },
         {
