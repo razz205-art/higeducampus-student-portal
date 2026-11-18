@@ -1,14 +1,15 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Upload, Download, Mail, Eye, EyeOff, RotateCcw, FileSpreadsheet } from "lucide-react";
 import {
   parseCredentialsFileAction,
   previewCredentialEmailAction,
   sendBulkCredentialsAction,
   type CredentialRow,
+  type SentRowResult,
 } from "@/lib/actions/credential-mailer";
-import type { CredentialSendResult } from "@/lib/email/credential-mailer";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
 import Badge from "@/components/ui/Badge";
@@ -28,6 +29,28 @@ function downloadCsv(filename: string, rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function defaultBatchLabel(fileName: string): string {
+  const base = fileName.replace(/\.[^.]+$/, "");
+  const date = new Date().toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  return `${base} – ${date}`;
+}
+
 function downloadTemplate() {
   downloadCsv("credentials-template.csv", [
     ["Name", "Username", "Password", "Email"],
@@ -40,11 +63,14 @@ const fieldClass =
   "w-full rounded-sm border border-ink-900/15 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-900/30 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500";
 
 export default function CredentialMailerView() {
+  const router = useRouter();
   const [subject, setSubject] = useState(DEFAULT_SUBJECT);
+  const [batchLabel, setBatchLabel] = useState("");
+  const [batchId, setBatchId] = useState<string | undefined>(undefined);
 
   const [fileName, setFileName] = useState<string | null>(null);
   const [rows, setRows] = useState<CredentialRow[]>([]);
-  const [results, setResults] = useState<Record<number, CredentialSendResult>>({});
+  const [results, setResults] = useState<Record<number, SentRowResult>>({});
   const [notice, setNotice] = useState<{ variant: "success" | "error"; text: string } | null>(null);
   const [showPasswords, setShowPasswords] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
@@ -63,6 +89,8 @@ export default function CredentialMailerView() {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
+    setBatchLabel(defaultBatchLabel(file.name));
+    setBatchId(undefined);
     setRows([]);
     setResults({});
     setNotice(null);
@@ -105,8 +133,10 @@ export default function CredentialMailerView() {
           password,
           email,
         })),
-        options
+        options,
+        { label: batchLabel, fileName: fileName ?? undefined, batchId }
       );
+      if (res.batchId) setBatchId(res.batchId);
       if (res.results.length > 0) {
         setResults((prev) => {
           const next = { ...prev };
@@ -115,12 +145,13 @@ export default function CredentialMailerView() {
         });
       }
       setNotice({ variant: res.success ? "success" : "error", text: res.message });
+      router.refresh();
     });
   }
 
   function downloadResults() {
-    downloadCsv("credential-email-results.csv", [
-      ["Row", "Name", "Username", "Email", "Status", "Details"],
+    downloadCsv(`${batchLabel || "credential-email-results"}.csv`, [
+      ["Row", "Name", "Username", "Email", "Status", "Sent at", "Details"],
       ...rows.map((r) => [
         String(r.row),
         r.name,
@@ -133,6 +164,7 @@ export default function CredentialMailerView() {
             : results[r.row]
               ? "Failed"
               : "Not sent",
+        results[r.row] ? formatDateTime(results[r.row].sentAt) : "",
         r.error ?? results[r.row]?.message ?? "",
       ]),
     ]);
@@ -206,7 +238,8 @@ export default function CredentialMailerView() {
           <span className="font-mono text-ink-900/80">Name, Username, Password, Email</span>. Name
           is optional. Also accepted: &ldquo;Display name&rdquo;, &ldquo;User ID&rdquo;,
           &ldquo;Login ID&rdquo;, &ldquo;Email ID&rdquo;. Extra columns (like Licenses) are ignored.
-          Up to 500 rows per file. Nothing is saved — this only sends emails.
+          Up to 500 rows per file. Every send is recorded in Send history below (passwords are never
+          saved).
         </p>
         <input
           ref={fileInputRef}
@@ -284,6 +317,7 @@ export default function CredentialMailerView() {
                   <th className="px-3 py-2 font-medium">Password</th>
                   <th className="px-3 py-2 font-medium">Email</th>
                   <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium">Sent at</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-900/[0.06]">
@@ -311,6 +345,9 @@ export default function CredentialMailerView() {
                           <span className="text-ink-900/40">Ready</span>
                         )}
                       </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-ink-900/50">
+                        {result ? formatDateTime(result.sentAt) : "—"}
+                      </td>
                     </tr>
                   );
                 })}
@@ -319,12 +356,29 @@ export default function CredentialMailerView() {
           </div>
 
           {unsentRows.length > 0 && (
+            <label className="block max-w-md text-sm">
+              <span className="mb-1.5 block font-medium text-ink-800">
+                Batch name{" "}
+                <span className="font-normal text-ink-900/40">(to find this send in history)</span>
+              </span>
+              <input
+                value={batchLabel}
+                onChange={(e) => setBatchLabel(e.target.value)}
+                disabled={!!batchId}
+                placeholder="e.g. PBI Batch 3 – Nov 2026"
+                className={`${fieldClass} disabled:bg-ink-900/[0.03] disabled:text-ink-900/60`}
+              />
+            </label>
+          )}
+
+          {unsentRows.length > 0 && (
             <div className="flex flex-wrap items-center gap-3">
               {!confirming ? (
                 <Button
                   type="button"
                   onClick={() => setConfirming(true)}
                   isLoading={isPending}
+                  disabled={batchLabel.trim().length < 2}
                   className="flex items-center justify-center gap-2 sm:w-auto sm:px-8"
                 >
                   {failedRows.length > 0 && failedRows.length === unsentRows.length ? (

@@ -829,3 +829,35 @@ model TestpressSyncState {
 
   @@map("testpress_sync_state")
 }
+
+// Send history for the bulk credential mailer (People > Send Credentials).
+// Standalone: not linked to User accounts. Passwords are never stored.
+model CredentialMailBatch {
+  id         String                    @id @default(cuid())
+  label      String
+  subject    String
+  fileName   String?
+  sentById   String?
+  sentByName String?
+  createdAt  DateTime                  @default(now())
+  recipients CredentialMailRecipient[]
+
+  @@index([createdAt])
+  @@map("credential_mail_batches")
+}
+
+model CredentialMailRecipient {
+  id        String              @id @default(cuid())
+  batchId   String
+  batch     CredentialMailBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  rowNumber Int
+  name      String
+  username  String
+  email     String
+  status    String // "SENT" | "FAILED"
+  error     String?
+  sentAt    DateTime            @default(now())
+
+  @@unique([batchId, rowNumber])
+  @@map("credential_mail_recipients")
+}

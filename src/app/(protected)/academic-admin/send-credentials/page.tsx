@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth/auth";
 import { routes } from "@/config/site";
 import CredentialMailerView from "@/components/admin/CredentialMailerView";
+import CredentialHistoryView from "@/components/admin/CredentialHistoryView";
+import { getCredentialBatchSummaries } from "@/lib/actions/credential-mailer";
 
 export const metadata = { title: "Send Login Credentials" };
 
@@ -15,6 +17,8 @@ export default async function SendCredentialsPage() {
     redirect(routes.unauthorized);
   }
 
+  const batches = await getCredentialBatchSummaries();
+
   return (
     <div className="space-y-6">
       <div>
@@ -25,6 +29,7 @@ export default async function SendCredentialsPage() {
         </p>
       </div>
       <CredentialMailerView />
+      <CredentialHistoryView batches={batches} />
     </div>
   );
 }

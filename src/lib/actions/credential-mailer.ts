@@ -2,7 +2,9 @@
 
 import ExcelJS from "exceljs";
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth/auth";
+import { prisma } from "@/lib/db/prisma";
 import { parseCsv } from "@/lib/utils/csv";
 import {
   sendCredentialEmails,
@@ -254,10 +256,27 @@ export async function previewCredentialEmailAction(
   return { success: true, message: "", html: renderCredentialEmail(sample, parsed.data) };
 }
 
+const batchInfoSchema = z.object({
+  label: z.string().trim().min(2, "Enter a batch name for this send.").max(120),
+  fileName: z.string().trim().max(200).optional(),
+  // Set when retrying failed rows, so they're recorded on the same batch.
+  batchId: z.string().min(1).optional(),
+});
+
+export interface SentRowResult extends CredentialSendResult {
+  sentAt: string; // ISO
+}
+
 export async function sendBulkCredentialsAction(
   rows: Omit<CredentialRow, "error">[],
-  options: z.infer<typeof optionsSchema>
-): Promise<{ success: boolean; message: string; results: CredentialSendResult[] }> {
+  options: z.infer<typeof optionsSchema>,
+  batchInfo: z.infer<typeof batchInfoSchema>
+): Promise<{
+  success: boolean;
+  message: string;
+  results: SentRowResult[];
+  batchId?: string;
+}> {
   const session = await auth();
   if (!session?.user || !isAdmin(session.user.role)) {
     return { success: false, message: "You don't have permission to do this.", results: [] };
@@ -268,6 +287,14 @@ export async function sendBulkCredentialsAction(
     return {
       success: false,
       message: opts.error.issues[0]?.message ?? "Invalid settings.",
+      results: [],
+    };
+  }
+  const info = batchInfoSchema.safeParse(batchInfo);
+  if (!info.success) {
+    return {
+      success: false,
+      message: info.error.issues[0]?.message ?? "Invalid batch name.",
       results: [],
     };
   }
@@ -284,9 +311,9 @@ export async function sendBulkCredentialsAction(
     return { success: false, message: "There are no valid rows to send.", results: [] };
   }
 
-  let results: CredentialSendResult[];
+  let sendResults: CredentialSendResult[];
   try {
-    results = await sendCredentialEmails(parsedRows.data, opts.data);
+    sendResults = await sendCredentialEmails(parsedRows.data, opts.data);
   } catch {
     return {
       success: false,
@@ -296,14 +323,203 @@ export async function sendBulkCredentialsAction(
     };
   }
 
+  const sentAt = new Date();
+  const results: SentRowResult[] = sendResults.map((r) => ({
+    ...r,
+    sentAt: sentAt.toISOString(),
+  }));
+
+  // Record the send in history. A logging failure must never hide the fact
+  // that the emails themselves went out, so it only adds a note.
+  let batchId = info.data.batchId;
+  let historyNote = "";
+  try {
+    const byRow = new Map(parsedRows.data.map((r) => [r.row, r]));
+    const recipientData = results.map((r) => {
+      const src = byRow.get(r.row)!;
+      return {
+        rowNumber: r.row,
+        name: src.name,
+        username: src.username,
+        email: src.email,
+        status: r.status === "sent" ? "SENT" : "FAILED",
+        error: r.message ?? null,
+        sentAt,
+      };
+    });
+
+    const existing = batchId
+      ? await prisma.credentialMailBatch.findUnique({ where: { id: batchId } })
+      : null;
+
+    if (!existing) {
+      const batch = await prisma.credentialMailBatch.create({
+        data: {
+          label: info.data.label,
+          subject: opts.data.subject,
+          fileName: info.data.fileName ?? null,
+          sentById: session.user.id ?? null,
+          sentByName: session.user.name ?? session.user.email ?? null,
+          recipients: { createMany: { data: recipientData } },
+        },
+      });
+      batchId = batch.id;
+    } else {
+      await prisma.$transaction(
+        recipientData.map((d) =>
+          prisma.credentialMailRecipient.upsert({
+            where: { batchId_rowNumber: { batchId: existing.id, rowNumber: d.rowNumber } },
+            create: { ...d, batchId: existing.id },
+            update: { status: d.status, error: d.error, sentAt: d.sentAt },
+          })
+        )
+      );
+    }
+    revalidatePath("/academic-admin/send-credentials");
+  } catch {
+    historyNote = " (Couldn't save this send to history.)";
+  }
+
   const sent = results.filter((r) => r.status === "sent").length;
   const failed = results.length - sent;
   return {
     success: sent > 0,
     message:
-      failed === 0
+      (failed === 0
         ? `All ${sent} email${sent === 1 ? "" : "s"} sent.`
-        : `${sent} sent, ${failed} failed — see the table below.`,
+        : `${sent} sent, ${failed} failed — see the table below.`) + historyNote,
     results,
+    batchId,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Send history
+// ---------------------------------------------------------------------------
+
+export interface CredentialBatchSummary {
+  id: string;
+  label: string;
+  subject: string;
+  fileName: string | null;
+  sentByName: string | null;
+  createdAt: string; // ISO
+  total: number;
+  sent: number;
+  failed: number;
+}
+
+export interface CredentialRecipientRecord {
+  rowNumber: number;
+  name: string;
+  username: string;
+  email: string;
+  status: "SENT" | "FAILED";
+  error: string | null;
+  sentAt: string; // ISO
+}
+
+/** Most recent 300 sends, newest first, with sent/failed counts. */
+export async function getCredentialBatchSummaries(): Promise<CredentialBatchSummary[]> {
+  const session = await auth();
+  if (!session?.user || !isAdmin(session.user.role)) return [];
+  const batches = await prisma.credentialMailBatch.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 300,
+    select: {
+      id: true,
+      label: true,
+      subject: true,
+      fileName: true,
+      sentByName: true,
+      createdAt: true,
+      recipients: { select: { status: true } },
+    },
+  });
+  return batches.map((b) => {
+    const sent = b.recipients.filter((r) => r.status === "SENT").length;
+    return {
+      id: b.id,
+      label: b.label,
+      subject: b.subject,
+      fileName: b.fileName,
+      sentByName: b.sentByName,
+      createdAt: b.createdAt.toISOString(),
+      total: b.recipients.length,
+      sent,
+      failed: b.recipients.length - sent,
+    };
+  });
+}
+
+export async function getCredentialBatchRecipientsAction(
+  batchId: string
+): Promise<{ success: boolean; message: string; recipients: CredentialRecipientRecord[] }> {
+  const session = await auth();
+  if (!session?.user || !isAdmin(session.user.role)) {
+    return { success: false, message: "You don't have permission to do this.", recipients: [] };
+  }
+  const rows = await prisma.credentialMailRecipient.findMany({
+    where: { batchId },
+    orderBy: { rowNumber: "asc" },
+  });
+  return {
+    success: true,
+    message: "",
+    recipients: rows.map((r) => ({
+      rowNumber: r.rowNumber,
+      name: r.name,
+      username: r.username,
+      email: r.email,
+      status: r.status === "SENT" ? "SENT" : "FAILED",
+      error: r.error,
+      sentAt: r.sentAt.toISOString(),
+    })),
+  };
+}
+
+export interface CredentialRecipientMatch extends CredentialRecipientRecord {
+  batchId: string;
+  batchLabel: string;
+}
+
+/** Find a person across every send, by name, username or email. */
+export async function searchCredentialRecipientsAction(
+  query: string
+): Promise<{ success: boolean; message: string; matches: CredentialRecipientMatch[] }> {
+  const session = await auth();
+  if (!session?.user || !isAdmin(session.user.role)) {
+    return { success: false, message: "You don't have permission to do this.", matches: [] };
+  }
+  const q = query.trim();
+  if (q.length < 2) {
+    return { success: false, message: "Type at least 2 characters.", matches: [] };
+  }
+  const rows = await prisma.credentialMailRecipient.findMany({
+    where: {
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { username: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    orderBy: { sentAt: "desc" },
+    take: 100,
+    include: { batch: { select: { label: true } } },
+  });
+  return {
+    success: true,
+    message: rows.length === 0 ? "No one found matching that." : "",
+    matches: rows.map((r) => ({
+      batchId: r.batchId,
+      batchLabel: r.batch.label,
+      rowNumber: r.rowNumber,
+      name: r.name,
+      username: r.username,
+      email: r.email,
+      status: r.status === "SENT" ? "SENT" : "FAILED",
+      error: r.error,
+      sentAt: r.sentAt.toISOString(),
+    })),
   };
 }
